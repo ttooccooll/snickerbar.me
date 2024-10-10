@@ -227,3 +227,43 @@ video {
 ::-webkit-scrollbar {
   display: none;
 }
+
+.black-background {
+  background-color: #000000;
+}
+
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  .q-dialog,
+  .q-dialog * {
+    visibility: visible;
+  }
+  .q-dialog {
+    position: absolute;
+    left: 0;
+    top: 0;
+  }
+  .print-container {
+    background-color: #000;
+  }
+  body {
+    font-size: 12pt;
+    background-color: black;
+    border: black;
+    color: orange;
+  }
+  .q-dialog {
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    padding: 0;
+  }
+  .q-btn {
+    display: none;
+  }
+  * {
+    -webkit-print-color-adjust: exact;
+  }
+}

@@ -4,41 +4,170 @@
     position="top"
     backdrop-filter="blur(2px) brightness(60%)"
     no-backdrop-dismiss
-    full-height
+    maximized
   >
     <q-card class="q-pa-none q-pt-none qcard">
       <!--  enter send data -->
       <div v-if="!sendData.tokens">
-        <q-card-section class="q-pa-lg q-pt-md">
-          <div class="row items-center no-wrap q-mb-sm q-pr-md q-py-lg">
-            <div class="col-9">
-              <span class="text-h6">Send Ecash</span>
+        <q-card-section class="q-pa-md q-pt-md">
+          <div class="row items-center no-wrap q-my-sm q-py-none">
+            <div class="col-12">
+              <q-input
+                type="number"
+                v-model.number="sendData.amount1"
+                :label="'Amount 1 (' + tickerShort + ') *'"
+                mask="#"
+                fill-mask="0"
+                reverse-fill-mask
+                round
+                outlined
+                autofocus
+                class="q-mb-md"
+              />
             </div>
-            <div class="col-3" style="height: 30px">
-              <transition
-                appear
-                enter-active-class="animated fadeIn"
-                leave-active-class="animated fadeOut"
-              >
-                <q-badge
-                  v-if="
-                    canSpendOffline && !sendData.p2pkPubkey && !showLockInput
-                  "
-                  outline
-                  rounded
-                  color="grey"
-                  class="q-mr-auto q-pl-sm q-ml-md q-pr-sm q-my-xs q-mt-xs"
-                  size="lg"
-                >
-                  <q-icon
-                    name="check"
-                    color="primary"
-                    class="q-mr-sm"
-                    size="sm"
-                  />
-                  <span class="text-subtitle2 text-weight-medium">Offline</span>
-                </q-badge>
-              </transition>
+          </div>
+          <div class="row items-center no-wrap q-my-sm q-py-none">
+            <div class="col-12">
+              <q-input
+                type="number"
+                v-model.number="sendData.amount2"
+                :label="'Amount 2 (' + tickerShort + ') *'"
+                mask="#"
+                fill-mask="0"
+                reverse-fill-mask
+                round
+                outlined
+                autofocus
+                class="q-mb-md"
+              />
+            </div>
+          </div>
+          <div class="row items-center no-wrap q-my-sm q-py-none">
+            <div class="col-12">
+              <q-input
+                type="number"
+                v-model.number="sendData.amount3"
+                :label="'Amount 3 (' + tickerShort + ') *'"
+                mask="#"
+                fill-mask="0"
+                reverse-fill-mask
+                round
+                outlined
+                autofocus
+                class="q-mb-md"
+              />
+            </div>
+          </div>
+          <div class="row items-center no-wrap q-my-sm q-py-none">
+            <div class="col-12">
+              <q-input
+                type="number"
+                v-model.number="sendData.amount4"
+                :label="'Amount 4 (' + tickerShort + ') *'"
+                mask="#"
+                fill-mask="0"
+                reverse-fill-mask
+                round
+                outlined
+                autofocus
+                class="q-mb-md"
+              />
+            </div>
+          </div>
+          <div class="row items-center no-wrap q-my-sm q-py-none">
+            <div class="col-12">
+              <q-input
+                type="number"
+                v-model.number="sendData.amount5"
+                :label="'Amount 5 (' + tickerShort + ') *'"
+                mask="#"
+                fill-mask="0"
+                reverse-fill-mask
+                round
+                outlined
+                autofocus
+                class="q-mb-md"
+              />
+            </div>
+          </div>
+          <div class="row items-center no-wrap q-my-sm q-py-none">
+            <div class="col-12">
+              <q-input
+                type="number"
+                v-model.number="sendData.amount6"
+                :label="'Amount 6 (' + tickerShort + ') *'"
+                mask="#"
+                fill-mask="0"
+                reverse-fill-mask
+                round
+                outlined
+                autofocus
+                class="q-mb-md"
+              />
+            </div>
+          </div>
+          <div class="row items-center no-wrap q-my-sm q-py-none">
+            <div class="col-12">
+              <q-input
+                type="number"
+                v-model.number="sendData.amount7"
+                :label="'Amount 7 (' + tickerShort + ') *'"
+                mask="#"
+                fill-mask="0"
+                reverse-fill-mask
+                round
+                outlined
+                autofocus
+                class="q-mb-md"
+              />
+            </div>
+          </div>
+          <div class="row items-center no-wrap q-my-sm q-py-none">
+            <div class="col-12">
+              <q-input
+                type="number"
+                v-model.number="sendData.amount8"
+                :label="'Amount 8 (' + tickerShort + ') *'"
+                mask="#"
+                fill-mask="0"
+                reverse-fill-mask
+                round
+                outlined
+                autofocus
+                class="q-mb-md"
+              />
+            </div>
+          </div>
+          <div class="row items-center no-wrap q-my-sm q-py-none">
+            <div class="col-12">
+              <q-input
+                type="number"
+                v-model.number="sendData.amount9"
+                :label="'Amount 9 (' + tickerShort + ') *'"
+                mask="#"
+                fill-mask="0"
+                reverse-fill-mask
+                round
+                outlined
+                autofocus
+                class="q-mb-md"
+              />
+            </div>
+          </div>
+          <div class="row items-center no-wrap q-my-sm q-py-none">
+            <div class="col-12">
+              <q-input
+                type="number"
+                v-model.number="sendData.amount10"
+                :label="'Amount 10 (' + tickerShort + ') *'"
+                mask="#"
+                fill-mask="0"
+                reverse-fill-mask
+                round
+                outlined
+                autofocus
+                class="q-mb-md"
+              />
             </div>
           </div>
           <div class="row items-center no-wrap q-my-sm q-py-none">
@@ -46,27 +175,6 @@
               <ChooseMint :ticker-short="tickerShort" />
             </div>
           </div>
-
-          <q-input
-            type="number"
-            v-model.number="sendData.amount"
-            :label="'Amount (' + tickerShort + ') *'"
-            mask="#"
-            fill-mask="0"
-            reverse-fill-mask
-            round
-            outlined
-            autofocus
-            class="q-mb-lg"
-            @keyup.enter="sendTokens"
-          >
-            <q-btn
-              flat
-              color="primary"
-              @click="toggleUnit()"
-              :label="activeUnitLabel"
-            />
-          </q-input>
           <!-- <q-input
                 filled
                 dense
@@ -125,10 +233,26 @@
             <q-btn
               v-if="!sendData.tokens"
               :disable="
-                sendData.amount == null ||
-                sendData.amount <= 0 ||
-                (sendData.p2pkPubkey != '' &&
-                  !isValidPubkey(sendData.p2pkPubkey))
+                sendData.amount1 == null ||
+                sendData.amount1 <= 0 ||
+                sendData.amount2 == null ||
+                sendData.amount2 <= 0 ||
+                sendData.amount3 == null ||
+                sendData.amount3 <= 0 ||
+                sendData.amount4 == null ||
+                sendData.amount4 <= 0 ||
+                sendData.amount5 == null ||
+                sendData.amount5 <= 0 ||
+                sendData.amount6 == null ||
+                sendData.amount6 <= 0 ||
+                sendData.amount7 == null ||
+                sendData.amount7 <= 0 ||
+                sendData.amount8 == null ||
+                sendData.amount8 <= 0 ||
+                sendData.amount9 == null ||
+                sendData.amount9 <= 0 ||
+                sendData.amount10 == null ||
+                sendData.amount10 <= 0
               "
               @click="sendTokens"
               color="primary"
@@ -139,8 +263,7 @@
               <template v-slot:loading>
                 <q-spinner-hourglass />
               </template>
-              </q-btn
-            >
+            </q-btn>
             <div
               v-if="sendData.p2pkPubkey && isValidPubkey(sendData.p2pkPubkey)"
               class="row"
@@ -199,106 +322,104 @@
       </div>
 
       <!-- show ecash details -->
-      <div v-else class="text-center q-mb-xs">
+      <div v-else class="text-center q-mb-xs black-background">
         <q-card-section class="q-pa-none q-pt-md">
-          <div class="text-center q-mb-md" v-if="qrCodeFragment">
-            <q-responsive :ratio="1" class="q-mx-none">
-              <vue-qrcode
-                :value="qrCodeFragment"
-                :options="{ width: 400 }"
-                class="rounded-borders"
-                @click="copyText(sendData.tokensBase64)"
-              >
-              </vue-qrcode>
-            </q-responsive>
-          </div>
-          <div class="q-pb-xs q-ba-none q-gutter-sm">
-            <q-btn
-              v-if="showAnimatedQR"
-              flat
-              style="font-size: 12px"
-              color="grey"
-              class="q-ma-none"
-              @click="changeSpeed"
+          <div class="row justify-center">
+            <div
+              v-for="(token, index) in sendData.tokens"
+              :key="index"
+              class="col-2"
+              style="margin: 10px"
             >
-              <q-icon name="speed" style="margin-right: 8px"></q-icon>
-              Speed: {{ fragmentSpeedLabel }}
+              <div class="text-center q-mb-md">
+                <q-responsive :ratio="1" class="q-mx-none" style="width: 300px">
+                  <vue-qrcode
+                    :value="token"
+                    :options="{
+                      width: 300,
+                      color: {
+                        dark: '#000000',
+                        light: '#6c5ce7',
+                      },
+                    }"
+                    class="rounded-borders"
+                    @click="copyText(token)"
+                  >
+                  </vue-qrcode>
+                </q-responsive>
+              </div>
+              <q-card-section class="q-pa-sm">
+                <div class="row justify-center">
+                  <q-item-label
+                    overline
+                    class="q-mb-sm"
+                    style="color: orange; font-size: 15px"
+                    >Happy Halloween!</q-item-label
+                  >
+                </div>
+                <div class="row justify-center q-py-md">
+                  <q-item-label
+                    style="color: darkorange; font-size: 10px"
+                    class="text-weight-bold"
+                  >
+                    <strong
+                      >This one's for the parents. Go to cashu.me and scan this
+                      QR code for {{ displayUnit }} of real bitcoin.</strong
+                    ></q-item-label
+                  >
+                  <div class="row justify-center q-py-md">
+                    <q-item-label
+                      style="
+                        color: darkorange;
+                        font-size: 5px;
+                        word-break: break-all;
+                      "
+                      class="text-weight-bold"
+                    >
+                      <strong>{{ token }}</strong></q-item-label
+                    >
+                  </div>
+                </div>
+                <div class="row q-mt-lg">
+                  <q-btn
+                    class="q-mx-xs"
+                    style="color: darkorange"
+                    size="sm"
+                    flat
+                    @click="copyText(token)"
+                    >Copy</q-btn
+                  >
+                </div>
+              </q-card-section>
+            </div>
+          </div>
+          <div class="row q-mt-lg">
+            <q-btn
+              class="q-mx-none"
+              style="color: darkorange"
+              icon="delete"
+              size="md"
+              @click="showDeleteDialog = true"
+              flat
+            >
+              <q-tooltip>Delete from history</q-tooltip>
             </q-btn>
             <q-btn
-              v-if="showAnimatedQR"
+              class="q-mx-none"
+              style="color: darkorange"
+              size="md"
+              icon="print"
               flat
-              style="font-size: 12px"
-              class="q-ma-none"
-              color="grey"
-              @click="changeSize"
+              @click="printPage"
+            ></q-btn>
+            <q-btn
+              @click="showSendTokens = false"
+              flat
+              style="color: orange"
+              class="q-ml-auto"
+              >Close</q-btn
             >
-              <q-icon name="zoom_in" style="margin-right: 8px"></q-icon>
-              Size: {{ fragmentLengthLabel }}
-            </q-btn>
-            <q-badge
-                :color="!isV4Token ? 'primary' : 'grey'"
-                :label="isV4Token ? 'V4' : 'V3'"
-                class="q-my-sm q-mx-md cursor-pointer"
-                @click="toggleTokenEncoding"
-                :outline="isV4Token"
-              />
           </div>
-          <q-card-section class="q-pa-sm">
-            <div class="row justify-center">
-              <q-item-label overline class="q-mb-sm text-white"
-                >Ecash</q-item-label
-              >
-            </div>
-            <div class="row justify-center q-py-md">
-              <q-item-label style="font-size: 30px" class="text-weight-bold">
-                <q-spinner-dots
-                  v-if="runnerActive"
-                  color="primary"
-                  size="0.8em"
-                  class="q-mr-md"
-                />
-                <strong>{{ displayUnit }}</strong></q-item-label
-              >
-            </div>
-            <div class="row justify-center q-pt-sm">
-              <TokenInformation
-                :encodedToken="sendData.tokensBase64"
-                :showAmount="false"
-                :showP2PKCheck="false"
-              />
-            </div>
-            <div class="row q-mt-lg">
-              <q-btn
-                class="q-mx-xs"
-                size="md"
-                flat
-                @click="copyText(sendData.tokensBase64)"
-                >Copy</q-btn
-              >
-              <q-btn
-                class="q-mx-none"
-                color="grey"
-                size="md"
-                icon="link"
-                flat
-                @click="copyText(baseURL + '?token=' + sendData.tokensBase64)"
-                ><q-tooltip>Copy link</q-tooltip></q-btn
-              >
-              <q-btn
-                class="q-mx-none"
-                color="grey"
-                icon="delete"
-                size="md"
-                @click="showDeleteDialog = true"
-                flat
-              >
-                <q-tooltip>Delete from history</q-tooltip>
-              </q-btn>
-              <q-btn v-close-popup flat color="grey" class="q-ml-auto"
-                >Close</q-btn
-              >
-            </div>
-          </q-card-section>
         </q-card-section>
       </div>
     </q-card>
@@ -356,7 +477,11 @@ import { Buffer } from "buffer";
 import { useCameraStore } from "src/stores/camera";
 import { useP2PKStore } from "src/stores/p2pk";
 import TokenInformation from "components/TokenInformation.vue";
-import { getDecodedToken, getEncodedTokenV4, getEncodedToken } from "@cashu/cashu-ts";
+import {
+  getDecodedToken,
+  getEncodedTokenV4,
+  getEncodedToken,
+} from "@cashu/cashu-ts";
 
 import { mapActions, mapState, mapWritableState } from "pinia";
 import ChooseMint from "components/ChooseMint.vue";
@@ -367,34 +492,10 @@ export default defineComponent({
   mixins: [windowMixin],
   components: {
     ChooseMint,
-    TokenInformation,
   },
   props: {},
   data: function () {
-    return {
-      baseURL: location.protocol + "//" + location.host + location.pathname,
-      showAnimatedQR: false,
-      qrCodeFragment: "",
-      qrInterval: null,
-      encoder: null,
-      showDeleteDialog: false,
-
-      p2pkInput: "",
-
-      // parameters for animated QR
-      currentFragmentLength: 150,
-      fragmentLengthMedium: 100,
-      fragmentLengthShort: 50,
-      fragmentLengthLong: 150,
-      fragmentLengthLabel: "L",
-
-      currentFragmentInterval: 150,
-      fragmentIntervalMedium: 250,
-      fragmentIntervalFast: 150,
-      framentInervalSlow: 500,
-      fragmentSpeedLabel: "F",
-      isV4Token: false,
-    };
+    return {};
   },
   computed: {
     ...mapWritableState(useSendTokensStore, [
@@ -403,7 +504,11 @@ export default defineComponent({
     ]),
     ...mapWritableState(useSendTokensStore, ["sendData"]),
     ...mapWritableState(useCameraStore, ["camera", "hasCamera"]),
-    ...mapState(useUiStore, ["tickerShort", "canPasteFromClipboard", "globalMutexLock"]),
+    ...mapState(useUiStore, [
+      "tickerShort",
+      "canPasteFromClipboard",
+      "globalMutexLock",
+    ]),
     ...mapState(useMintsStore, [
       "activeProofs",
       "activeUnit",
@@ -415,12 +520,23 @@ export default defineComponent({
     ...mapState(useWorkersStore, ["tokenWorkerRunning"]),
     // TOKEN METHODS
     sumProofs: function () {
-      let proofs = token.getProofs(token.decode(this.sendData.tokensBase64));
-      return proofs.flat().reduce((sum, el) => (sum += el.amount), 0);
+      let sum = 0;
+      for (let i = 0; i < this.sendData.tokens.length; i++) {
+        let token = this.sendData.tokens[i];
+        let decodedToken = this.decodeToken(token);
+        let proofs = this.getProofs(decodedToken);
+        sum += proofs.flat().reduce((sum, el) => (sum += el.amount), 0);
+      }
+      return sum;
     },
     displayUnit: function () {
-      let display = this.formatCurrency(this.sumProofs, this.tokenUnit);
-      return display;
+      let unit = "";
+      for (let i = 0; i < this.sendData.tokens.length; i++) {
+        let token = this.sendData.tokens[i];
+        let decodedToken = this.decodeToken(token);
+        unit = this.getUnit(decodedToken);
+      }
+      return unit;
     },
     tokenUnit: function () {
       let unit = token.getUnit(token.decode(this.sendData.tokensBase64));
@@ -541,6 +657,9 @@ export default defineComponent({
     getMint: function (decoded_token) {
       return token.getMint(decoded_token);
     },
+    printPage: function () {
+      window.print();
+    },
     startQrCodeLoop: async function () {
       if (this.sendData.tokensBase64.length == 0) {
         return;
@@ -596,17 +715,13 @@ export default defineComponent({
       // if it starts with 'cashuB', it is a v4 token
       if (this.sendData.tokensBase64.startsWith("cashuA")) {
         try {
-          this.sendData.tokensBase64 = getEncodedTokenV4(decodedToken)
+          this.sendData.tokensBase64 = getEncodedTokenV4(decodedToken);
         } catch {
           console.log("### Could not encode token to V4");
-          this.sendData.tokensBase64 = getEncodedToken(
-          decodedToken
-        );
+          this.sendData.tokensBase64 = getEncodedToken(decodedToken);
         }
       } else {
-        this.sendData.tokensBase64 = getEncodedToken(
-          decodedToken
-        );
+        this.sendData.tokensBase64 = getEncodedToken(decodedToken);
       }
     },
     deleteThisToken: function () {
@@ -648,54 +763,54 @@ export default defineComponent({
       }
     },
     sendTokens: async function () {
-      /*
-      calls splitToSend, displays token and kicks off the spendableWorker
-      */
-      if (
-        this.sendData.p2pkPubkey &&
-        this.isValidPubkey(this.sendData.p2pkPubkey)
-      ) {
-        await this.lockTokens();
-        return;
+      let tokenAmounts = [
+        this.sendData.amount1,
+        this.sendData.amount2,
+        this.sendData.amount3,
+        this.sendData.amount4,
+        this.sendData.amount5,
+        this.sendData.amount6,
+        this.sendData.amount7,
+        this.sendData.amount8,
+        this.sendData.amount9,
+        this.sendData.amount10,
+      ];
+
+      let tokens = [];
+
+      for (let i = 0; i < tokenAmounts.length; i++) {
+        let sendAmount = tokenAmounts[i];
+
+        try {
+          let { _, sendProofs } = await this.splitToSend(
+            this.activeProofs,
+            sendAmount,
+            true
+          );
+
+          if (sendProofs.length > 0) {
+            let token = this.serializeProofs(sendProofs);
+            tokens.push(token);
+
+            this.addPendingToken({
+              amount: -sendAmount,
+              serializedProofs: token,
+              unit: this.activeUnit,
+              mint: this.activeMintUrl,
+            });
+
+            if (!this.g.offline) {
+              this.checkTokenSpendableWorker(token);
+            }
+          } else {
+            console.log(`No proofs generated for amount ${sendAmount}`);
+          }
+        } catch (error) {
+          console.error(error);
+        }
       }
 
-      try {
-        let sendAmount = this.sendData.amount;
-        // if unit is USD, multiply by 100
-        if (this.activeUnit === "usd" || this.activeUnit == "eur") {
-          sendAmount = sendAmount * 100;
-        }
-        // keep firstProofs, send scndProofs and delete them (invalidate=true)
-        let { _, sendProofs } = await this.splitToSend(
-          this.activeProofs,
-          sendAmount,
-          true
-        );
-
-        // update UI
-        this.sendData.tokens = sendProofs;
-        console.log("### this.sendData.tokens", this.sendData.tokens);
-
-        this.sendData.tokensBase64 = this.serializeProofs(sendProofs);
-        this.addPendingToken({
-          amount: -this.sendData.amount,
-          serializedProofs: this.sendData.tokensBase64,
-          unit: this.activeUnit,
-          mint: this.activeMintUrl,
-        });
-
-        if (!this.g.offline) {
-          this.checkTokenSpendableWorker(this.sendData.tokensBase64);
-        }
-      } catch (error) {
-        console.error(error);
-      }
-    },
-    pasteToP2PKField: function () {
-      console.log("pasteToParseDialog");
-      navigator.clipboard.readText().then((text) => {
-        this.sendData.p2pkPubkey = text;
-      });
+      this.sendData.tokens = tokens;
     },
   },
 });
