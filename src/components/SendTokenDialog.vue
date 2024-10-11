@@ -364,7 +364,8 @@
                   >
                     <strong
                       >This one's for the parents. Go to cashu.me and scan this
-                      QR code for {{ displayUnit }} of real bitcoin.</strong
+                      QR code for {{ tokenAmounts[index] }} sats of real
+                      bitcoin.</strong
                     ></q-item-label
                   >
                   <div class="row justify-center q-py-md">
@@ -537,6 +538,20 @@ export default defineComponent({
         unit = this.getUnit(decodedToken);
       }
       return unit;
+    },
+    tokenAmounts: function () {
+      return [
+        this.sendData.amount1,
+        this.sendData.amount2,
+        this.sendData.amount3,
+        this.sendData.amount4,
+        this.sendData.amount5,
+        this.sendData.amount6,
+        this.sendData.amount7,
+        this.sendData.amount8,
+        this.sendData.amount9,
+        this.sendData.amount10,
+      ];
     },
     tokenUnit: function () {
       let unit = token.getUnit(token.decode(this.sendData.tokensBase64));
