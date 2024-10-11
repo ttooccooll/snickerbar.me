@@ -1,3 +1,5 @@
+THIS IS VERY BUGGY RIGHT NOW!!!! Only use small amounts of money that you want to pass out to trick or treaters. It does finally display the amount of sats of each nut though, which was one of the bummer things that I didn't notice was brocken when I posted this on stacker news.
+
 # Cashu (cashu)
 
 Snickerbar Wallet (Cashu fork)
