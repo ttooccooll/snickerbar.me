@@ -1,11 +1,13 @@
 # Cashu (cashu)
 
-Cashu Wallet
+Snickerbar Wallet (Cashu fork)
 
 ## One-liner build & run
+
 ```
 docker-compose up -d
 ```
+
 access at http://localhost:3000 or serve it behind a reverse proxy.
 
 ## Install the dependencies
