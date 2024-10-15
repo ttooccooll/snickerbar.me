@@ -92,86 +92,6 @@
           </div>
           <div class="row items-center no-wrap q-my-sm q-py-none">
             <div class="col-12">
-              <q-input
-                type="number"
-                v-model.number="sendData.amount6"
-                :label="'Amount 6 (' + tickerShort + ') *'"
-                mask="#"
-                fill-mask="0"
-                reverse-fill-mask
-                round
-                outlined
-                autofocus
-                class="q-mb-md"
-              />
-            </div>
-          </div>
-          <div class="row items-center no-wrap q-my-sm q-py-none">
-            <div class="col-12">
-              <q-input
-                type="number"
-                v-model.number="sendData.amount7"
-                :label="'Amount 7 (' + tickerShort + ') *'"
-                mask="#"
-                fill-mask="0"
-                reverse-fill-mask
-                round
-                outlined
-                autofocus
-                class="q-mb-md"
-              />
-            </div>
-          </div>
-          <div class="row items-center no-wrap q-my-sm q-py-none">
-            <div class="col-12">
-              <q-input
-                type="number"
-                v-model.number="sendData.amount8"
-                :label="'Amount 8 (' + tickerShort + ') *'"
-                mask="#"
-                fill-mask="0"
-                reverse-fill-mask
-                round
-                outlined
-                autofocus
-                class="q-mb-md"
-              />
-            </div>
-          </div>
-          <div class="row items-center no-wrap q-my-sm q-py-none">
-            <div class="col-12">
-              <q-input
-                type="number"
-                v-model.number="sendData.amount9"
-                :label="'Amount 9 (' + tickerShort + ') *'"
-                mask="#"
-                fill-mask="0"
-                reverse-fill-mask
-                round
-                outlined
-                autofocus
-                class="q-mb-md"
-              />
-            </div>
-          </div>
-          <div class="row items-center no-wrap q-my-sm q-py-none">
-            <div class="col-12">
-              <q-input
-                type="number"
-                v-model.number="sendData.amount10"
-                :label="'Amount 10 (' + tickerShort + ') *'"
-                mask="#"
-                fill-mask="0"
-                reverse-fill-mask
-                round
-                outlined
-                autofocus
-                class="q-mb-md"
-              />
-            </div>
-          </div>
-          <div class="row items-center no-wrap q-my-sm q-py-none">
-            <div class="col-12">
               <ChooseMint :ticker-short="tickerShort" />
             </div>
           </div>
@@ -242,17 +162,7 @@
                 sendData.amount4 == null ||
                 sendData.amount4 <= 0 ||
                 sendData.amount5 == null ||
-                sendData.amount5 <= 0 ||
-                sendData.amount6 == null ||
-                sendData.amount6 <= 0 ||
-                sendData.amount7 == null ||
-                sendData.amount7 <= 0 ||
-                sendData.amount8 == null ||
-                sendData.amount8 <= 0 ||
-                sendData.amount9 == null ||
-                sendData.amount9 <= 0 ||
-                sendData.amount10 == null ||
-                sendData.amount10 <= 0
+                sendData.amount5 <= 0
               "
               @click="sendTokens"
               color="primary"
@@ -328,21 +238,22 @@
             <div
               v-for="(token, index) in sendData.tokens"
               :key="index"
-              class="col-2"
-              style="margin: 10px"
+              class="col-5"
+              style="margin: 5px; width: 200px"
             >
               <div class="text-center q-mb-md">
-                <q-responsive :ratio="1" class="q-mx-none" style="width: 300px">
+                <q-responsive :ratio="1" class="q-mx-none" style="width: 200px">
                   <vue-qrcode
                     :value="token"
                     :options="{
-                      width: 300,
+                      width: 200,
                       color: {
                         dark: '#000000',
                         light: '#6c5ce7',
                       },
                     }"
                     class="rounded-borders"
+                    style="margin: 0; padding: 0"
                     @click="copyText(token)"
                   >
                   </vue-qrcode>
@@ -353,27 +264,35 @@
                   <q-item-label
                     overline
                     class="q-mb-sm"
-                    style="color: orange; font-size: 15px"
+                    style="
+                      color: orange;
+                      font-size: 25px;
+                      margin: 0;
+                      padding: 0;
+                    "
                     >Happy Halloween!</q-item-label
                   >
                 </div>
                 <div class="row justify-center q-py-md">
                   <q-item-label
-                    style="color: darkorange; font-size: 10px"
+                    style="color: darkorange; font-size: 12px"
                     class="text-weight-bold"
                   >
                     <strong
-                      >This one's for the parents. Go to cashu.me and scan this
-                      QR code for {{ tokenAmounts[index] }} sats of real
-                      bitcoin.</strong
+                      >This one's for the parents. The QR code below is a link
+                      to cashu.me, which is a bitcoin ecash wallet. With that
+                      wallet, scan the QR code above for
+                      {{ tokenAmounts[index] }} sats of real bitcoin.</strong
                     ></q-item-label
                   >
                   <div class="row justify-center q-py-md">
                     <q-item-label
                       style="
                         color: darkorange;
-                        font-size: 5px;
+                        font-size: 8px;
                         word-break: break-all;
+                        margin: 0;
+                        padding: 0;
                       "
                       class="text-weight-bold"
                     >
@@ -381,16 +300,19 @@
                     >
                   </div>
                 </div>
-                <div class="row q-mt-lg">
-                  <q-btn
-                    class="q-mx-xs"
-                    style="color: darkorange"
-                    size="sm"
-                    flat
-                    @click="copyText(token)"
-                    >Copy</q-btn
-                  >
-                </div>
+                <vue-qrcode
+                  :value="'https://cashu.me'"
+                  :options="{
+                    width: 100,
+                    color: {
+                      light: '#33CC33',
+                      dark: '#000',
+                    },
+                  }"
+                  class="rounded-borders"
+                  style="margin: 0; padding: 0"
+                >
+                </vue-qrcode>
               </q-card-section>
             </div>
           </div>
@@ -546,11 +468,6 @@ export default defineComponent({
         this.sendData.amount3,
         this.sendData.amount4,
         this.sendData.amount5,
-        this.sendData.amount6,
-        this.sendData.amount7,
-        this.sendData.amount8,
-        this.sendData.amount9,
-        this.sendData.amount10,
       ];
     },
     tokenUnit: function () {
