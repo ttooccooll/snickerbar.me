@@ -284,7 +284,7 @@
                       With that wallet, scan the vampire purple QR code above
                       for {{ tokenAmounts[index] }} sats of real bitcoin. Any
                       other cashu wallet will work as well. Just make sure the
-                      QR code is perfectly flat and your camera lense is clean.
+                      QR code is perfectly flat and your camera lens is clean.
                     </strong></q-item-label
                   >
                 </div>
