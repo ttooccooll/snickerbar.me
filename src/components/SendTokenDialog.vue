@@ -728,11 +728,6 @@ export default defineComponent({
         this.sendData.amount3,
         this.sendData.amount4,
         this.sendData.amount5,
-        this.sendData.amount6,
-        this.sendData.amount7,
-        this.sendData.amount8,
-        this.sendData.amount9,
-        this.sendData.amount10,
       ];
 
       let tokens = [];
