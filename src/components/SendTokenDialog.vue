@@ -279,26 +279,27 @@
                     class="text-weight-bold"
                   >
                     <strong
-                      >This one's for the parents. The QR code below is a link
-                      to cashu.me, which is a bitcoin ecash wallet. With that
-                      wallet, scan the QR code above for
-                      {{ tokenAmounts[index] }} sats of real bitcoin.</strong
-                    ></q-item-label
+                      >This one's for the parents. The slime green QR code below
+                      is a link to cashu.me, which is a bitcoin ecash wallet.
+                      With that wallet, scan the vampire purple QR code above
+                      for {{ tokenAmounts[index] }} sats of real bitcoin. Any
+                      other cashu wallet will work as well. The final QR is just
+                      for education. It is also free.
+                    </strong></q-item-label
                   >
-                  <div class="row justify-center q-py-md">
-                    <q-item-label
-                      style="
-                        color: darkorange;
-                        font-size: 8px;
-                        word-break: break-all;
-                        margin: 0;
-                        padding: 0;
-                      "
-                      class="text-weight-bold"
-                    >
-                      <strong>{{ token }}</strong></q-item-label
-                    >
-                  </div>
+                </div>
+                <div class="row justify-center">
+                  <q-item-label
+                    overline
+                    class="q-mb-sm"
+                    style="
+                      color: orange;
+                      font-size: 12px;
+                      margin: 5px;
+                      padding: 0;
+                    "
+                    >Free cashu.me wallet:</q-item-label
+                  >
                 </div>
                 <vue-qrcode
                   :value="'https://cashu.me'"
@@ -306,6 +307,32 @@
                     width: 100,
                     color: {
                       light: '#33CC33',
+                      dark: '#000',
+                    },
+                  }"
+                  class="rounded-borders"
+                  style="margin: 0; padding: 0"
+                >
+                </vue-qrcode>
+                <div class="row justify-center">
+                  <q-item-label
+                    overline
+                    class="q-mb-sm"
+                    style="
+                      color: orange;
+                      font-size: 12px;
+                      margin: 5px;
+                      padding: 0;
+                    "
+                    >Find out why bitcoin is such a big deal:</q-item-label
+                  >
+                </div>
+                <vue-qrcode
+                  :value="'https://youtu.be/24waV3Fwvow?si=yNBx0t5TXD6GhwwC'"
+                  :options="{
+                    width: 100,
+                    color: {
+                      light: '#6c5ce7',
                       dark: '#000',
                     },
                   }"
