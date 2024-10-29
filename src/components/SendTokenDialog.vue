@@ -246,6 +246,7 @@
                   <vue-qrcode
                     :value="token"
                     :options="{
+                      errorCorrectionLevel: 'L',
                       width: 200,
                       color: {
                         dark: '#000000',
