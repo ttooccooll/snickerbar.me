@@ -32,17 +32,20 @@
     <div class="treat-card__amount">
       <span aria-hidden="true">🍬</span> {{ amountLabel }} of real bitcoin
     </div>
+    <div class="treat-card__name">“{{ name }}”</div>
     <div class="treat-card__howto">
-      <template v-if="qrStyle === 'link'">
-        <b>For the grown-ups:</b> scan the big code with your phone camera. It
-        opens a free bitcoin ecash wallet where you can claim this treat. Any
-        Cashu wallet can scan it too. Claim it soon!
-      </template>
-      <template v-else>
-        <b>For the grown-ups:</b> get a free Cashu ecash wallet like cashu.me
-        ("Free wallet" code), then scan the big code with it to claim this
-        treat. Claim it soon!
-      </template>
+      <b>For the grown-ups:</b> this is Cashu ecash, a digital bearer note worth
+      real bitcoin. Whoever claims it first keeps it.
+      <ol v-if="qrStyle === 'link'" class="treat-card__steps">
+        <li>Scan the big code with your phone camera.</li>
+        <li>Tap <b>Receive</b> in the wallet that opens.</li>
+        <li>That's it. Any Cashu wallet can scan it too.</li>
+      </ol>
+      <ol v-else class="treat-card__steps">
+        <li>Get a free Cashu wallet ("Free wallet" code).</li>
+        <li>Scan the big code with that wallet.</li>
+        <li>Tap <b>Receive</b>. Claim it soon!</li>
+      </ol>
     </div>
     <div class="treat-card__links">
       <div v-if="qrStyle !== 'link'" class="treat-card__link">
@@ -81,6 +84,7 @@
 import { defineComponent } from "vue";
 import token from "src/js/token";
 import { buildClaimLink, mascotFor } from "src/js/treats";
+import { treatName } from "src/js/spooky";
 import { getShortUrl } from "src/js/wallet-helpers";
 
 export default defineComponent({
@@ -105,6 +109,9 @@ export default defineComponent({
   computed: {
     mascot: function () {
       return mascotFor(this.mascotIndex);
+    },
+    name: function () {
+      return treatName(this.token);
     },
     decoded: function () {
       try {
@@ -208,6 +215,19 @@ export default defineComponent({
   color: #ff9f1c;
 }
 
+.treat-card__name {
+  margin-top: 2px;
+  font-size: 0.78rem;
+  font-style: italic;
+  color: #d1b3ff;
+}
+
+.treat-card__steps {
+  margin: 4px 0 0;
+  padding-left: 1.3em;
+  text-align: left;
+}
+
 .treat-card__howto {
   margin: 8px 4px 10px;
   font-size: 0.8rem;
@@ -248,6 +268,9 @@ export default defineComponent({
   .treat-card__amount {
     color: #d35400;
   }
+  .treat-card__name {
+    color: #6a1b9a;
+  }
   .treat-card__howto,
   .treat-card__links {
     color: #222;
@@ -265,23 +288,32 @@ export default defineComponent({
     padding: 3mm 3mm 2mm;
   }
   .treat-card__title {
-    font-size: 1.35rem;
+    font-size: 1.25rem;
     margin-bottom: 1mm;
   }
   .treat-card__qr {
-    width: 56mm;
+    width: 54mm;
   }
   .treat-card__amount {
     margin-top: 1mm;
     font-size: 1rem;
   }
+  .treat-card__name {
+    margin-top: 0;
+    font-size: 0.6rem;
+    line-height: 1.1;
+  }
+  .treat-card__steps {
+    margin-top: 0.5mm;
+  }
   .treat-card__howto {
-    margin: 1mm 2mm 2mm;
-    font-size: 0.68rem;
+    margin: 1mm 2mm 1mm;
+    font-size: 0.62rem;
+    line-height: 1.25;
   }
   .treat-card__small-qr {
-    width: 13mm;
-    height: 13mm;
+    width: 12mm;
+    height: 12mm;
   }
   .treat-card__footer {
     margin-top: 1mm;
