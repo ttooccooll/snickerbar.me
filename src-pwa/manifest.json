@@ -1,11 +1,11 @@
 {
-  "name": "Cashu.me",
-  "short_name": "Cashu.me",
-  "description": "A Cashu Ecash wallet for the web.",
+  "name": "Snickerbar",
+  "short_name": "Snickerbar",
+  "description": "A Halloween bitcoin ecash wallet: hand out real sats to trick-or-treaters.",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#000000",
-  "theme_color": "#000000",
+  "background_color": "#07040b",
+  "theme_color": "#1a1025",
   "protocol_handlers": [
     {
       "protocol": "web+cashu",

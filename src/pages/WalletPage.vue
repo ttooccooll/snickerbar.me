@@ -49,6 +49,7 @@
         <ReceiveDialog v-model="showReceiveDialog" />
         <SendDialog v-model="showSendDialog" />
       </div>
+      <TreatBagBanner />
       <!-- ///////////////////////////////////////////
       ////////////////// TABLES /////////////////
       /////////////////////////////////////////// -->
@@ -115,7 +116,7 @@
               "
               color="primary"
               @click="triggerPwaInstall()"
-              ><b>Install</b><q-tooltip>Install Cashu</q-tooltip></q-btn
+              ><b>Install</b><q-tooltip>Install Snickerbar</q-tooltip></q-btn
             >
           </div>
         </div>
@@ -198,6 +199,7 @@ import SendDialog from "components/SendDialog.vue";
 import ReceiveDialog from "components/ReceiveDialog.vue";
 import QrcodeReader from "components/QrcodeReader.vue";
 import iOSPWAPrompt from "components/iOSPWAPrompt.vue";
+import TreatBagBanner from "components/TreatBagBanner.vue";
 // pinia stores
 import { mapActions, mapState, mapWritableState } from "pinia";
 import { useMintsStore } from "src/stores/mints";
@@ -232,6 +234,7 @@ export default {
     SendDialog,
     ReceiveDialog,
     iOSPWAPrompt,
+    TreatBagBanner,
   },
   data: function () {
     return {
@@ -280,6 +283,7 @@ export default {
     ...mapWritableState(useUiStore, ["expandHistory"]),
     ...mapWritableState(useReceiveTokensStore, [
       "showReceiveTokens",
+      "fromClaimLink",
       "receiveData",
     ]),
     ...mapWritableState(useSendTokensStore, ["showSendTokens", "sendData"]),
@@ -457,17 +461,16 @@ export default {
 
     showTokenDialog: function (tokensBase64) {
       console.log("##### showTokenDialog");
-      this.sendData.tokens = this.getProofs(this.decodeToken(tokensBase64));
-      this.sendData.tokensBase64 = _.clone(tokensBase64);
+      this.sendData.tokens = [tokensBase64];
+      this.sendData.tokensBase64 = tokensBase64;
       this.showSendTokens = true;
       // kick off token check worker
       // this.checkTokenSpendableWorker(tokensBase64);
     },
     showSendTokensDialog: function () {
       console.log("##### showSendTokensDialog");
-      this.sendData.tokens = "";
+      this.sendData.tokens = [];
       this.sendData.tokensBase64 = "";
-      this.sendData.amount = null;
       this.sendData.memo = "";
       this.showSendTokens = true;
     },
@@ -607,6 +610,7 @@ export default {
       if (!seen) {
         // show receive token dialog
         this.receiveData.tokensBase64 = params.get("token");
+        this.fromClaimLink = true;
         this.showReceiveTokens = true;
       }
     }

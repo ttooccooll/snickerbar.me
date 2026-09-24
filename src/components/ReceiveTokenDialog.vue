@@ -9,7 +9,10 @@
       <div>
         <div class="row items-center no-wrap q-mb-sm">
           <div class="col-10">
-            <span class="text-h6">Receive Ecash</span>
+            <span v-if="fromClaimLink" class="text-h5 spooky-title"
+              >🎃 You got a treat!</span
+            >
+            <span v-else class="text-h6">Receive Ecash</span>
           </div>
         </div>
         <div>
@@ -151,6 +154,7 @@ export default defineComponent({
   computed: {
     ...mapWritableState(useReceiveTokensStore, [
       "showReceiveTokens",
+      "fromClaimLink",
       "receiveData",
     ]),
     ...mapState(useUiStore, ["tickerShort"]),
@@ -178,6 +182,13 @@ export default defineComponent({
         return false;
       }
       return this.knowThisMintOfTokenJson(tokenJson);
+    },
+  },
+  watch: {
+    showReceiveTokens: function (val) {
+      if (!val) {
+        this.fromClaimLink = false;
+      }
     },
   },
   methods: {

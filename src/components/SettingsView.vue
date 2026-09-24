@@ -583,6 +583,16 @@
             </div> -->
                 <div class="row q-pt-md">
                   <q-btn
+                    v-if="themes.includes('halloween')"
+                    dense
+                    flat
+                    @click="changeColor('halloween')"
+                    icon="format_color_fill"
+                    color="deep-orange"
+                    size="md"
+                    ><q-tooltip>halloween</q-tooltip>
+                  </q-btn>
+                  <q-btn
                     v-if="themes.includes('monochrome')"
                     dense
                     flat
@@ -962,6 +972,7 @@ export default defineComponent({
   data: function () {
     return {
       themes: [
+        "halloween",
         "monochrome",
         "classic",
         "bitcoin",

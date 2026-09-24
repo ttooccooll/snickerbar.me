@@ -97,11 +97,9 @@ export default defineComponent({
     },
     showSendTokensDialog: function () {
       console.log("##### showSendTokensDialog");
-      this.sendData.tokens = "";
+      this.sendData.tokens = [];
       this.sendData.tokensBase64 = "";
-      this.sendData.amount = null;
       this.sendData.memo = "";
-      this.sendData.p2pkPubkey = "";
       this.showSendDialog = false;
       this.showSendTokens = true;
       this.showLockInput = false;
