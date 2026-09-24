@@ -236,6 +236,22 @@
           >
         </div>
         <div class="treat-toolbar__actions">
+          <q-btn
+            v-if="!isSingle"
+            unelevated
+            dense
+            rounded
+            color="deep-orange"
+            class="q-px-sm q-mr-xs"
+            icon="door_front"
+            label="Porch mode"
+            data-test="porch-btn"
+            @click="showPorch = true"
+            ><q-tooltip
+              >Show one big QR code at a time on this screen, perfect for a
+              tablet at the door</q-tooltip
+            ></q-btn
+          >
           <q-btn flat dense icon="print" @click="printPage" label="Print" />
           <q-btn
             flat
@@ -306,6 +322,15 @@
       </div>
     </q-card>
   </q-dialog>
+
+  <PorchMode
+    v-model="showPorch"
+    :tokens="sendData.tokens"
+    :claimed="claimed"
+    :message="treatSettings.message"
+    :qr-style="treatSettings.qrStyle"
+    :claim-base-url="claimBaseUrl"
+  />
 
   <!-- confirm taking back unclaimed treats -->
   <q-dialog v-model="showReclaimDialog">
@@ -384,9 +409,12 @@ import {
 } from "src/js/treats";
 import ChooseMint from "components/ChooseMint.vue";
 import TreatCard from "components/TreatCard.vue";
+import PorchMode from "components/PorchMode.vue";
 
 // how often the open treat sheet asks the mint which treats were claimed
 const CLAIM_POLL_MS = 20000;
+// porch mode moves on to the next treat as soon as one is claimed
+const PORCH_POLL_MS = 4000;
 
 export default defineComponent({
   name: "SendTokenDialog",
@@ -394,6 +422,7 @@ export default defineComponent({
   components: {
     ChooseMint,
     TreatCard,
+    PorchMode,
   },
   data: function () {
     return {
@@ -404,6 +433,7 @@ export default defineComponent({
       claimed: [],
       checkingClaims: false,
       claimPoll: null,
+      showPorch: false,
       reclaiming: false,
       showReclaimDialog: false,
       showDeleteDialog: false,
@@ -532,6 +562,7 @@ export default defineComponent({
       if (val) {
         this.onSheetChanged();
       } else {
+        this.showPorch = false;
         this.stopClaimPoll();
         this.claimed = [];
         this.sendData.tokens = [];
@@ -540,6 +571,10 @@ export default defineComponent({
     },
     "sendData.tokens": function () {
       this.onSheetChanged();
+    },
+    showPorch: function () {
+      // poll faster while the porch display is up
+      this.restartClaimPoll();
     },
   },
   beforeUnmount: function () {
@@ -552,6 +587,7 @@ export default defineComponent({
       "reclaimToken",
     ]),
     ...mapActions(useProofsStore, ["serializeProofs"]),
+    ...mapActions(useUiStore, ["celebrate"]),
     ...mapActions(useTokensStore, ["addPendingToken", "deleteToken"]),
     toBaseUnit: function (amount) {
       // fiat units are stored in cents
@@ -628,9 +664,16 @@ export default defineComponent({
         return;
       }
       this.checkClaims(false);
+      this.restartClaimPoll();
+    },
+    restartClaimPoll: function () {
+      this.stopClaimPoll();
+      if (!this.showSendTokens || !this.sendData.tokens.length) {
+        return;
+      }
       this.claimPoll = setInterval(
         () => this.checkClaims(false),
-        CLAIM_POLL_MS
+        this.showPorch ? PORCH_POLL_MS : CLAIM_POLL_MS
       );
     },
     stopClaimPoll: function () {
@@ -649,6 +692,7 @@ export default defineComponent({
         const claimed = await this.checkTokensClaimed(tokens);
         // ignore the answer if the sheet changed in the meantime
         if (tokens.join() === this.sendData.tokens.join()) {
+          this.announceNewClaims(this.claimed, claimed);
           this.claimed = claimed;
         }
       } catch (error) {
@@ -658,6 +702,29 @@ export default defineComponent({
         }
       } finally {
         this.checkingClaims = false;
+      }
+    },
+    announceNewClaims: function (before, after) {
+      // the first check only tells us where we are, nothing new happened
+      if (before.length !== after.length) {
+        return;
+      }
+      const fresh = after
+        .map((c, i) => (c && !before[i] ? i + 1 : null))
+        .filter((n) => n !== null);
+      if (!fresh.length) {
+        return;
+      }
+      // porch mode throws its own party
+      if (!this.showPorch) {
+        this.celebrate();
+        notifySuccess(
+          fresh.length === 1 && !this.isSingle
+            ? `👻 Treat #${fresh[0]} was just claimed!`
+            : `👻 ${fresh.length} treat${
+                fresh.length == 1 ? " was" : "s were"
+              } just claimed!`
+        );
       }
     },
     reclaimUnclaimed: async function () {

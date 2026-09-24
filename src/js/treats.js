@@ -118,3 +118,16 @@ export function buildClaimLink(baseUrl, token) {
 export function isHexKeysetId(id) {
   return typeof id === "string" && /^[0-9a-f]+$/i.test(id);
 }
+
+/**
+ * Whole days from `now` until the next Halloween (Oct 31, local time).
+ * Returns 0 on Halloween itself.
+ */
+export function daysUntilHalloween(now = new Date()) {
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  let halloween = new Date(now.getFullYear(), 9, 31);
+  if (today > halloween) {
+    halloween = new Date(now.getFullYear() + 1, 9, 31);
+  }
+  return Math.round((halloween - today) / 86400000);
+}

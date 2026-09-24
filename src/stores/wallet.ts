@@ -423,6 +423,8 @@ export const useWalletStore = defineStore("wallet", {
       const mintStore = useMintsStore();
       const p2pkStore = useP2PKStore();
 
+      const fromClaimLink = receiveStore.fromClaimLink;
+      receiveStore.fromClaimLink = false;
       receiveStore.showReceiveTokens = false;
       console.log("### receive tokens", receiveStore.receiveData.tokensBase64);
 
@@ -478,8 +480,13 @@ export const useWalletStore = defineStore("wallet", {
         }
 
 
-        if (!!window.navigator.vibrate) navigator.vibrate(200);
-        notifySuccess("Received " + uIStore.formatCurrency(amount, mintStore.activeUnit));
+        if (fromClaimLink) {
+          uIStore.celebrate();
+          notifySuccess("🎃 You got " + uIStore.formatCurrency(amount, mintStore.activeUnit, true) + " of bitcoin! Happy Halloween!");
+        } else {
+          if (!!window.navigator.vibrate) navigator.vibrate(200);
+          notifySuccess("Received " + uIStore.formatCurrency(amount, mintStore.activeUnit));
+        }
       } catch (error: any) {
         console.error(error);
         notifyApiError(error);

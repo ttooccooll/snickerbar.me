@@ -21,6 +21,8 @@ export const useUiStore = defineStore("ui", {
     expandHistory:
       useLocalStorage("cashu.ui.expandHistory", true as boolean),
     globalMutexLock: false,
+    // bumped to make it rain candy (see SpookyEffects.vue)
+    candyRain: 0,
   }),
   actions: {
     async lockMutex() {
@@ -41,6 +43,9 @@ export const useUiStore = defineStore("ui", {
     },
     unlockMutex() {
       this.globalMutexLock = false;
+    },
+    celebrate() {
+      this.candyRain += 1;
     },
     setTab(tab: string) {
       this.tab = tab;

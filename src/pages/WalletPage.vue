@@ -50,6 +50,7 @@
         <SendDialog v-model="showSendDialog" />
       </div>
       <TreatBagBanner />
+      <HalloweenCountdown />
       <!-- ///////////////////////////////////////////
       ////////////////// TABLES /////////////////
       /////////////////////////////////////////// -->
@@ -200,6 +201,7 @@ import ReceiveDialog from "components/ReceiveDialog.vue";
 import QrcodeReader from "components/QrcodeReader.vue";
 import iOSPWAPrompt from "components/iOSPWAPrompt.vue";
 import TreatBagBanner from "components/TreatBagBanner.vue";
+import HalloweenCountdown from "components/HalloweenCountdown.vue";
 // pinia stores
 import { mapActions, mapState, mapWritableState } from "pinia";
 import { useMintsStore } from "src/stores/mints";
@@ -235,6 +237,7 @@ export default {
     ReceiveDialog,
     iOSPWAPrompt,
     TreatBagBanner,
+    HalloweenCountdown,
   },
   data: function () {
     return {

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   MAX_TREATS,
   buildClaimLink,
+  daysUntilHalloween,
   isHexKeysetId,
   maxBagTotal,
   noteCount,
@@ -102,5 +103,20 @@ describe("isHexKeysetId", () => {
 
   it("rejects legacy base64 keyset ids", () => {
     expect(isHexKeysetId("I2yN+iRYfkzT")).toBe(false);
+  });
+});
+
+describe("daysUntilHalloween", () => {
+  it("counts down to October 31", () => {
+    expect(daysUntilHalloween(new Date(2026, 8, 24, 15, 30))).toEqual(37);
+    expect(daysUntilHalloween(new Date(2026, 9, 30, 23, 59))).toEqual(1);
+  });
+
+  it("is zero on Halloween", () => {
+    expect(daysUntilHalloween(new Date(2026, 9, 31, 20, 0))).toEqual(0);
+  });
+
+  it("rolls over to next year after Halloween", () => {
+    expect(daysUntilHalloween(new Date(2026, 10, 1))).toEqual(364);
   });
 });

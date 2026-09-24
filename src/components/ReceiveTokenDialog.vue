@@ -217,6 +217,8 @@ export default defineComponent({
       const mintStore = useMintsStore();
       const receiveStore = useReceiveTokensStore();
       const uIStore = useUiStore();
+      // closing the dialog resets fromClaimLink, the redeem still needs it
+      const fromClaimLink = receiveStore.fromClaimLink;
       receiveStore.showReceiveTokens = false;
       console.log("### receive tokens", receiveStore.receiveData.tokensBase64);
 
@@ -255,6 +257,7 @@ export default defineComponent({
         await this.addMint({ url: token.getMint(tokenJson) });
       }
       // redeem the token
+      receiveStore.fromClaimLink = fromClaimLink;
       await this.redeem(receiveStore.receiveData.tokensBase64);
     },
     // TOKEN METHODS
