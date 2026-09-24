@@ -16,7 +16,7 @@
           />
         </q-avatar> -->
         <q-toolbar-title
-          ><span class="text-weight-bold">Cashu</span> ecash
+          ><span class="text-weight-bold">Snickerbar</span> 🎃 bitcoin ecash
           wallet</q-toolbar-title
         >
       </q-toolbar>
@@ -102,6 +102,7 @@ import { defineComponent } from "vue";
 import { mapActions, mapState } from "pinia";
 import { useMintsStore } from "stores/mints";
 import { useWalletStore } from "src/stores/wallet";
+import { useReceiveTokensStore } from "src/stores/receiveTokensStore";
 
 export default defineComponent({
   name: "WelcomeDialog",
@@ -115,8 +116,11 @@ export default defineComponent({
   },
   data: function () {
     return {
+      // someone who opened a treat's claim link gets to claim it first,
+      // the welcome shows on their next visit
       showWelcomeDialog:
-        localStorage.getItem("cashu.welcomeDialogSeen") != "seen",
+        localStorage.getItem("cashu.welcomeDialogSeen") != "seen" &&
+        !useReceiveTokensStore().fromClaimLink,
     };
   },
   watch: {},

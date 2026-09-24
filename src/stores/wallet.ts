@@ -7,18 +7,18 @@ import { useTokensStore } from "./tokens";
 import { useReceiveTokensStore } from "./receiveTokensStore";
 import { useUiStore } from "src/stores/ui";
 import { useP2PKStore } from "src/stores/p2pk"
-import { useSendTokensStore } from "src/stores/sendTokensStore"
 
 import * as _ from "underscore";
 import token from "src/js/token";
 import { notifyApiError, notifyError, notifySuccess, notifyWarning, notify } from "src/js/notify";
-import { CashuMint, CashuWallet, Proof, MintQuotePayload, CheckStatePayload, MeltQuotePayload, MeltQuoteResponse, generateNewMnemonic, deriveSeedFromMnemonic, AmountPreference, CheckStateEnum, getDecodedToken, Token, MeltQuoteState, MintQuoteState } from "@cashu/cashu-ts";
+import { CashuMint, CashuWallet, Proof, MintQuotePayload, CheckStatePayload, MeltQuotePayload, MeltQuoteResponse, generateNewMnemonic, deriveSeedFromMnemonic, AmountPreference, CheckStateEnum, getDecodedToken, Token, MeltQuoteState, MintQuoteState, MintKeyset } from "@cashu/cashu-ts";
 import { hashToCurve } from '@cashu/crypto/modules/common';
 import * as bolt11Decoder from "light-bolt11-decoder";
 import { bech32 } from "bech32";
 import axios from "axios";
 import { date } from "quasar";
 import { splitAmount } from "@cashu/cashu-ts/dist/lib/es5/utils";
+import { isHexKeysetId } from "src/js/treats";
 
 // HACK: this is a workaround so that the catch block in the melt function does not throw an error when the user exits the app
 // before the payment is completed. This is necessary because the catch block in the melt function would otherwise remove all
@@ -43,10 +43,18 @@ type InvoiceHistory = Invoice & {
   token?: string;
 };
 
+// cashu-ts 1.x does not type the NUT-02 input fee yet
+type FeeKeyset = MintKeyset & { input_fee_ppk?: number };
+
 type KeysetCounter = {
   id: string;
   counter: number;
 };
+
+// cuts a token out of a pasted string or a claim link like https://host/?token=cashuB…&x=y
+function extractToken(req: string, prefix: string) {
+  return req.slice(req.indexOf(prefix)).split(/[^A-Za-z0-9_\-+/=]/)[0];
+}
 
 const receiveStore = useReceiveTokensStore();
 const tokenStore = useTokensStore();
@@ -163,13 +171,13 @@ export const useWalletStore = defineStore("wallet", {
       // rules for selection:
       // - filter all keysets that are active=true
       // - order by id (whether it is hex or base64)
-      // - order by input_fee_ppk (ascending) TODO: this is not implemented yet
+      // - order by input_fee_ppk (ascending)
       // - select the first one
       const activeKeysets = unitKeysets.filter(k => k.active)
-      const hexKeysets = activeKeysets.filter(k => k.id.startsWith("00"))
-      const base64Keysets = activeKeysets.filter(k => !k.id.startsWith("00"))
+      const byFee = (a: FeeKeyset, b: FeeKeyset) => (a.input_fee_ppk ?? 0) - (b.input_fee_ppk ?? 0)
+      const hexKeysets = activeKeysets.filter(k => isHexKeysetId(k.id)).sort(byFee)
+      const base64Keysets = activeKeysets.filter(k => !isHexKeysetId(k.id)).sort(byFee)
       const sortedKeysets = hexKeysets.concat(base64Keysets)
-      // const sortedKeysets = _.sortBy(activeKeysets, k => [k.id, k.input_fee_ppk])
       if (sortedKeysets.length == 0) {
         console.error("no active keysets found for unit", mintStore.activeUnit);
         throw new Error("no active keysets found for unit");
@@ -248,7 +256,8 @@ export const useWalletStore = defineStore("wallet", {
       return amountsWithCount;
     },
     coinSelectSpendBase64: function (proofs: WalletProof[], amount: number): WalletProof[] {
-      const base64Proofs = proofs.filter(p => !p.id.startsWith("00"))
+      // legacy base64 keysets; hex ids are "00…" (v1) and "01…" (v2) keysets
+      const base64Proofs = proofs.filter(p => !isHexKeysetId(p.id))
       if (base64Proofs.length > 0) {
         base64Proofs.sort((a, b) => b.amount - a.amount);
         let sum = 0;
@@ -414,6 +423,8 @@ export const useWalletStore = defineStore("wallet", {
       const mintStore = useMintsStore();
       const p2pkStore = useP2PKStore();
 
+      const fromClaimLink = receiveStore.fromClaimLink;
+      receiveStore.fromClaimLink = false;
       receiveStore.showReceiveTokens = false;
       console.log("### receive tokens", receiveStore.receiveData.tokensBase64);
 
@@ -469,8 +480,13 @@ export const useWalletStore = defineStore("wallet", {
         }
 
 
-        if (!!window.navigator.vibrate) navigator.vibrate(200);
-        notifySuccess("Received " + uIStore.formatCurrency(amount, mintStore.activeUnit));
+        if (fromClaimLink) {
+          uIStore.celebrate();
+          notifySuccess("🎃 You got " + uIStore.formatCurrency(amount, mintStore.activeUnit, true) + " of bitcoin! Happy Halloween!");
+        } else {
+          if (!!window.navigator.vibrate) navigator.vibrate(200);
+          notifySuccess("Received " + uIStore.formatCurrency(amount, mintStore.activeUnit));
+        }
       } catch (error: any) {
         console.error(error);
         notifyApiError(error);
@@ -797,6 +813,48 @@ export const useWalletStore = defineStore("wallet", {
         throw error;
       }
     },
+    /**
+     * Quietly checks which of the given tokens have been claimed (all proofs
+     * spent) with one request per mint. Claimed tokens are marked as paid in
+     * the history. Returns one boolean per token.
+     */
+    checkTokensClaimed: async function (tokenStrs: string[]): Promise<boolean[]> {
+      const enc = new TextEncoder();
+      const decoded = tokenStrs.map((t) => {
+        const tokenJson = token.decode(t);
+        return { mint: token.getMint(tokenJson), proofs: token.getProofs(tokenJson) };
+      });
+      const spentYs = new Set<string>();
+      const mintUrls = [...new Set(decoded.map((d) => d.mint))];
+      for (const mintUrl of mintUrls) {
+        const Ys = decoded
+          .filter((d) => d.mint === mintUrl)
+          .flatMap((d) => d.proofs)
+          .map((p) => hashToCurve(enc.encode(p.secret)).toHex(true));
+        const { states } = await new CashuMint(mintUrl).check({ Ys });
+        states
+          .filter((s) => s.state === CheckStateEnum.SPENT)
+          .forEach((s) => spentYs.add(s.Y));
+      }
+      return decoded.map((d, i) => {
+        const claimed = d.proofs.every((p) =>
+          spentYs.has(hashToCurve(enc.encode(p.secret)).toHex(true))
+        );
+        if (claimed) {
+          tokenStore.setTokenPaid(tokenStrs[i]);
+        }
+        return claimed;
+      });
+    },
+    /**
+     * Takes back ecash we sent that nobody claimed. The token's history entry
+     * is removed since the ecash never left the wallet.
+     */
+    reclaimToken: async function (tokenStr: string) {
+      receiveStore.receiveData.tokensBase64 = tokenStr;
+      await this.redeem();
+      tokenStore.deleteToken(tokenStr);
+    },
     checkTokenSpendable: async function (tokenStr: string, verbose: boolean = true) {
       /*
       checks whether a base64-encoded token (from the history table) has been spent already.
@@ -1075,10 +1133,7 @@ export const useWalletStore = defineStore("wallet", {
       receiveStore.showReceiveTokens = true;
     },
     handleP2PK: function (req: string) {
-      const sendTokenStore = useSendTokensStore()
-      sendTokenStore.sendData.p2pkPubkey = req
-      sendTokenStore.showSendTokens = true
-      sendTokenStore.showLockInput = true
+      notifyWarning("Locking ecash to a public key isn't supported in this wallet.");
     },
     decodeRequest: async function (req: string) {
       const p2pkStore = useP2PKStore()
@@ -1105,10 +1160,10 @@ export const useWalletStore = defineStore("wallet", {
         await this.lnurlPayFirst(this.payInvoiceData.input.request);
       } else if (req.indexOf("cashuA") !== -1) {
         // very dirty way of parsing cashu tokens from either a pasted token or a URL like https://host.com?token=eyJwcm
-        receiveStore.receiveData.tokensBase64 = req.slice(req.indexOf("cashuA"));
+        receiveStore.receiveData.tokensBase64 = extractToken(req, "cashuA");
         this.handleCashuToken()
       } else if (req.indexOf("cashuB") !== -1) {
-        receiveStore.receiveData.tokensBase64 = req.slice(req.indexOf("cashuB"));
+        receiveStore.receiveData.tokensBase64 = extractToken(req, "cashuB");
         this.handleCashuToken()
       } else if (p2pkStore.isValidPubkey(req)) {
         this.handleP2PK(req)

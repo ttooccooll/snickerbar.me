@@ -52,8 +52,9 @@ export class MintClass {
   }
 
   unitProofs(unit: string) {
-    const unitKeysets = this.unitKeysets(unit);
-    return this.proofs.filter((p) => unitKeysets.map((k) => k.id).includes(p.id));
+    // include proofs of inactive (rotated) keysets, they are still spendable
+    const unitKeysetIds = this.mint.keysets.filter((k) => k.unit === unit).map((k) => k.id);
+    return this.proofs.filter((p) => unitKeysetIds.includes(p.id));
   }
 
   unitBalance(unit: string) {

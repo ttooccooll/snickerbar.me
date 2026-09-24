@@ -1,26 +1,51 @@
 import { defineStore } from "pinia";
+import { useLocalStorage } from "@vueuse/core";
+
+export type TreatSettings = {
+  count: number;
+  mode: "same" | "mystery" | "custom";
+  amount: number | null;
+  minAmount: number | null;
+  maxAmount: number | null;
+  customAmounts: (number | null)[];
+  message: string;
+  qrStyle: "link" | "token";
+  claimBaseUrl: string;
+  inkSaver: boolean;
+};
+
+export const defaultTreatSettings = (): TreatSettings => ({
+  count: 5,
+  mode: "same",
+  amount: 21,
+  minAmount: 10,
+  maxAmount: 100,
+  customAmounts: [],
+  message: "Happy Halloween!",
+  qrStyle: "link",
+  claimBaseUrl: "",
+  inkSaver: false,
+});
 
 export const useSendTokensStore = defineStore("sendTokensStore", {
   state: () => ({
     showSendTokens: false,
     showLockInput: false,
+    // remembered between visits so next Halloween starts where you left off
+    treatSettings: useLocalStorage<TreatSettings>(
+      "snickerbar.treatSettings",
+      defaultTreatSettings(),
+      { mergeDefaults: true }
+    ),
     sendData: {
-      amount1: null,
-      amount2: null,
-      amount3: null,
-      amount4: null,
-      amount5: null,
+      // one encoded token per treat
       tokens: [],
-      tokensBase64: [],
+      // set when a single token from the history is shown
+      tokensBase64: "",
       memo: "",
     } as {
-      amount1: number | null;
-      amount2: number | null;
-      amount3: number | null;
-      amount4: number | null;
-      amount5: number | null;
       tokens: string[];
-      tokensBase64: string[];
+      tokensBase64: string;
       memo: string;
     },
   }),

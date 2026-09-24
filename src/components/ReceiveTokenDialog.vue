@@ -9,7 +9,10 @@
       <div>
         <div class="row items-center no-wrap q-mb-sm">
           <div class="col-10">
-            <span class="text-h6">Receive Ecash</span>
+            <span v-if="fromClaimLink" class="text-h5 spooky-title"
+              >🎃 You got a treat!</span
+            >
+            <span v-else class="text-h6">Receive Ecash</span>
           </div>
         </div>
         <div>
@@ -151,6 +154,7 @@ export default defineComponent({
   computed: {
     ...mapWritableState(useReceiveTokensStore, [
       "showReceiveTokens",
+      "fromClaimLink",
       "receiveData",
     ]),
     ...mapState(useUiStore, ["tickerShort"]),
@@ -180,6 +184,13 @@ export default defineComponent({
       return this.knowThisMintOfTokenJson(tokenJson);
     },
   },
+  watch: {
+    showReceiveTokens: function (val) {
+      if (!val) {
+        this.fromClaimLink = false;
+      }
+    },
+  },
   methods: {
     ...mapActions(useWalletStore, ["redeem"]),
     ...mapActions(useCameraStore, ["closeCamera", "showCamera"]),
@@ -206,6 +217,8 @@ export default defineComponent({
       const mintStore = useMintsStore();
       const receiveStore = useReceiveTokensStore();
       const uIStore = useUiStore();
+      // closing the dialog resets fromClaimLink, the redeem still needs it
+      const fromClaimLink = receiveStore.fromClaimLink;
       receiveStore.showReceiveTokens = false;
       console.log("### receive tokens", receiveStore.receiveData.tokensBase64);
 
@@ -244,6 +257,7 @@ export default defineComponent({
         await this.addMint({ url: token.getMint(tokenJson) });
       }
       // redeem the token
+      receiveStore.fromClaimLink = fromClaimLink;
       await this.redeem(receiveStore.receiveData.tokensBase64);
     },
     // TOKEN METHODS

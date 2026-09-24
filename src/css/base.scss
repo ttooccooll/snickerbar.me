@@ -1,4 +1,12 @@
 $themes: (
+  "halloween": (
+    primary: #ff7518,
+    secondary: #b388ff,
+    dark: #1a1025,
+    info: #2a1b3d,
+    marginal-bg: #1a1025,
+    marginal-text: #fff,
+  ),
   "classic": (
     primary: #935af5,
     secondary: #b45af5,
@@ -228,9 +236,19 @@ video {
   display: none;
 }
 
-.black-background {
-  background-color: #000000;
-  height: 550vh;
+// spooky display font for the treat cards (SIL Open Font License)
+@font-face {
+  font-family: "Creepster";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url(../fonts/creepster-v13-latin.woff2) format("woff2");
+}
+
+.spooky-title {
+  font-family: "Creepster", fantasy;
+  letter-spacing: 1px;
+  color: #ff7518;
 }
 
 .link {
@@ -239,40 +257,46 @@ video {
   align-items: center;
 }
 
+// Printing the treat sheet: only the open dialog is printed, and it has to
+// flow over several pages instead of being cut off at the screen height.
 @media print {
   @page {
-    size: A4 landscape;
-    margin: 0;
-    padding: 0;
-  }
-  .black-background {
-    overflow: visible;
-    height: 100%;
-  }
-  body * {
-    visibility: hidden;
-  }
-  .q-dialog,
-  .q-dialog * {
-    visibility: visible;
-  }
-  .q-dialog {
-    position: absolute;
-    left: 0;
-    top: 0;
-  }
-  .print-container {
-    background-color: #000;
-  }
-  .q-dialog {
-    width: 100%;
-    height: 100%;
-    margin: 0;
-  }
-  .q-btn {
-    display: none;
+    size: auto;
+    margin: 10mm;
   }
   * {
     -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  // Quasar pins the body with position: fixed while a dialog is open, which
+  // would clip every printed page
+  html,
+  body,
+  body.q-body--prevent-scroll {
+    position: static !important;
+    height: auto !important;
+    overflow: visible !important;
+    background: #fff !important;
+  }
+  #q-app,
+  .q-notifications,
+  .q-tooltip,
+  .no-print,
+  .q-dialog__backdrop {
+    display: none !important;
+  }
+  .q-dialog,
+  .q-dialog.fullscreen,
+  .q-dialog__inner,
+  .q-dialog-plugin,
+  .q-dialog .q-card,
+  .q-dialog__inner > div {
+    position: static !important;
+    height: auto !important;
+    max-height: none !important;
+    max-width: none !important;
+    overflow: visible !important;
+    transform: none !important;
+    box-shadow: none !important;
   }
 }

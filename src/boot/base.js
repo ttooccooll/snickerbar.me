@@ -197,7 +197,7 @@ window.windowMixin = {
         this.$q.localStorage.getItem("cashu.theme")
       );
     } else {
-      this.changeColor("monochrome");
+      this.changeColor("halloween");
     }
   },
 };

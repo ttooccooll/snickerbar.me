@@ -1,8 +1,8 @@
 {
   "name": "cashu",
   "version": "0.0.1",
-  "description": "Cashu.me Wallet",
-  "productName": "Cashu.me",
+  "description": "Snickerbar: a Halloween bitcoin ecash wallet for trick-or-treaters",
+  "productName": "Snickerbar",
   "author": "cashu.me",
   "private": true,
   "scripts": {
@@ -60,6 +60,7 @@
     "eslint-plugin-vue": "^9.26.0",
     "prettier": "^2.8.8",
     "typescript": "^5.4.5",
+    "vitest": "^3.2.7",
     "workbox-build": "^6.6.1",
     "workbox-cacheable-response": "^6.6.1",
     "workbox-core": "^6.6.1",
