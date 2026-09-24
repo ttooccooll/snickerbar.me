@@ -16,6 +16,17 @@
         >
         <div>
           <q-btn
+            flat
+            round
+            :icon="sound ? 'volume_up' : 'volume_off'"
+            color="orange"
+            data-test="porch-sound"
+            @click="$emit('toggle-sound')"
+            ><q-tooltip>{{
+              sound ? "Mute spooky sounds" : "Play spooky sounds"
+            }}</q-tooltip></q-btn
+          >
+          <q-btn
             v-if="current !== null && leftCount > 1"
             flat
             round
@@ -38,14 +49,30 @@
       <div v-if="current === null" class="porch__empty">
         <div class="porch__emoji">🍭</div>
         <div class="porch__title spooky-title">Out of candy!</div>
-        <div class="porch__sub">
-          Every treat was claimed. Happy Halloween! 🎃
+        <div class="porch__sub" data-test="porch-recap">
+          You handed out <b>{{ totalLabel }}</b> of real bitcoin to
+          <b>{{ tokens.length }}</b> trick-or-treater{{
+            tokens.length == 1 ? "" : "s"
+          }}. Happy Halloween! 🎃
         </div>
+        <q-btn
+          unelevated
+          rounded
+          no-caps
+          size="lg"
+          color="deep-orange"
+          class="q-mt-lg"
+          :loading="refilling"
+          data-test="porch-refill"
+          @click="$emit('refill')"
+          >🍬 Fill another bag</q-btn
+        >
       </div>
 
       <template v-else>
         <div class="porch__title spooky-title">
-          {{ message || "Trick or treat!" }}
+          {{ mascot.emoji }} {{ message || "Trick or treat!" }}
+          {{ mascot.emoji }}
         </div>
         <div class="porch__qr" :class="{ 'porch__qr--claimed': celebrating }">
           <vue-qrcode
@@ -59,6 +86,7 @@
             }"
             tag="img"
             class="porch__qr-img"
+            :style="{ borderColor: mascot.color }"
           />
           <transition
             appear
@@ -85,7 +113,8 @@
 import { defineComponent } from "vue";
 import { mapActions } from "pinia";
 import token from "src/js/token";
-import { buildClaimLink } from "src/js/treats";
+import { buildClaimLink, mascotFor } from "src/js/treats";
+import { playClaimSound } from "src/js/spookySounds";
 import { useUiStore } from "src/stores/ui";
 
 // how long the "Claimed!" ghost stays before the next treat shows up
@@ -100,8 +129,10 @@ export default defineComponent({
     message: { type: String, default: "" },
     qrStyle: { type: String, default: "link" },
     claimBaseUrl: { type: String, default: "" },
+    sound: { type: Boolean, default: true },
+    refilling: { type: Boolean, default: false },
   },
-  emits: ["update:modelValue"],
+  emits: ["update:modelValue", "toggle-sound", "refill"],
   data: function () {
     return {
       current: null,
@@ -118,16 +149,16 @@ export default defineComponent({
       const t = this.tokens[this.current];
       return this.qrStyle === "link" ? buildClaimLink(this.claimBaseUrl, t) : t;
     },
+    mascot: function () {
+      return mascotFor(this.current || 0);
+    },
     amountLabel: function () {
-      try {
-        const decoded = token.decode(this.tokens[this.current]);
-        const amount = token
-          .getProofs(decoded)
-          .reduce((sum, p) => sum + p.amount, 0);
-        return `${amount} ${amount === 1 ? "sat" : "sats"}`;
-      } catch (e) {
-        return "";
-      }
+      return this.satsLabel(this.tokenAmount(this.tokens[this.current]));
+    },
+    totalLabel: function () {
+      return this.satsLabel(
+        this.tokens.reduce((sum, t) => sum + this.tokenAmount(t), 0)
+      );
     },
   },
   watch: {
@@ -136,6 +167,14 @@ export default defineComponent({
         this.open();
       } else {
         this.close();
+      }
+    },
+    tokens: function () {
+      // a refilled bag starts over at its first treat
+      if (this.modelValue) {
+        clearTimeout(this.celebrationTimer);
+        this.celebrating = false;
+        this.current = this.nextUnclaimed(-1);
       }
     },
     claimed: function () {
@@ -180,9 +219,24 @@ export default defineComponent({
       }
       return null;
     },
+    tokenAmount: function (t) {
+      try {
+        return token
+          .getProofs(token.decode(t))
+          .reduce((sum, p) => sum + p.amount, 0);
+      } catch (e) {
+        return 0;
+      }
+    },
+    satsLabel: function (amount) {
+      return `${amount} ${amount === 1 ? "sat" : "sats"}`;
+    },
     celebrate: function () {
       this.celebrating = true;
       this.rainCandy();
+      if (this.sound) {
+        playClaimSound();
+      }
       this.celebrationTimer = setTimeout(() => {
         this.celebrating = false;
         this.current = this.nextUnclaimed(this.current);
@@ -286,6 +340,10 @@ export default defineComponent({
 
 .porch__sub {
   font-size: clamp(0.95rem, 2.5vw, 1.3rem);
+}
+
+.porch__empty {
+  max-width: 640px;
 }
 
 .porch__empty .porch__emoji {

@@ -5,11 +5,12 @@
       'treat-card--claimed': claimed,
       'treat-card--ink-saver': inkSaver,
     }"
+    :style="inkSaver ? {} : { borderColor: mascot.color }"
   >
     <div class="treat-card__title">
-      <span aria-hidden="true">🎃</span>
+      <span aria-hidden="true">{{ mascot.emoji }}</span>
       <span>{{ message || "Happy Halloween!" }}</span>
-      <span aria-hidden="true">🎃</span>
+      <span aria-hidden="true">{{ mascot.emoji }}</span>
     </div>
     <div class="treat-card__qr">
       <vue-qrcode
@@ -79,7 +80,7 @@
 <script>
 import { defineComponent } from "vue";
 import token from "src/js/token";
-import { buildClaimLink } from "src/js/treats";
+import { buildClaimLink, mascotFor } from "src/js/treats";
 import { getShortUrl } from "src/js/wallet-helpers";
 
 export default defineComponent({
@@ -93,6 +94,7 @@ export default defineComponent({
     claimed: { type: Boolean, default: false },
     inkSaver: { type: Boolean, default: false },
     number: { type: Number, default: null },
+    mascotIndex: { type: Number, default: 0 },
   },
   emits: ["copy"],
   data: function () {
@@ -101,6 +103,9 @@ export default defineComponent({
     };
   },
   computed: {
+    mascot: function () {
+      return mascotFor(this.mascotIndex);
+    },
     decoded: function () {
       try {
         return token.decode(this.token);

@@ -131,3 +131,25 @@ export function daysUntilHalloween(now = new Date()) {
   }
   return Math.round((halloween - today) / 86400000);
 }
+
+// every card gets its own little monster
+export const MASCOTS = [
+  { emoji: "🎃", color: "#ff9f1c" },
+  { emoji: "👻", color: "#b388ff" },
+  { emoji: "🦇", color: "#ff6b6b" },
+  { emoji: "🕷️", color: "#39d353" },
+  { emoji: "🧙", color: "#4fc3f7" },
+  { emoji: "💀", color: "#f5f5f5" },
+];
+
+export function mascotFor(index) {
+  const n = MASCOTS.length;
+  return MASCOTS[((index % n) + n) % n];
+}
+
+/**
+ * November and December: time to take back the treats nobody claimed.
+ */
+export function isAfterHalloween(now = new Date()) {
+  return now.getMonth() >= 10;
+}
