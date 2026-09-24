@@ -312,6 +312,7 @@
           :key="t"
           :token="t"
           :number="isSingle ? null : index + 1"
+          :mascot-index="index"
           :message="treatSettings.message"
           :qr-style="treatSettings.qrStyle"
           :claim-base-url="claimBaseUrl"
@@ -330,6 +331,10 @@
     :message="treatSettings.message"
     :qr-style="treatSettings.qrStyle"
     :claim-base-url="claimBaseUrl"
+    :sound="treatSettings.sound"
+    :refilling="filling"
+    @toggle-sound="treatSettings.sound = !treatSettings.sound"
+    @refill="fillBag"
   />
 
   <!-- confirm taking back unclaimed treats -->
@@ -654,8 +659,11 @@ export default defineComponent({
       } finally {
         this.filling = false;
       }
-      this.sendData.tokensBase64 = "";
-      this.sendData.tokens = tokens;
+      // nothing made (e.g. a refill from the porch failed): keep what's shown
+      if (tokens.length) {
+        this.sendData.tokensBase64 = "";
+        this.sendData.tokens = tokens;
+      }
     },
     onSheetChanged: function () {
       this.stopClaimPoll();

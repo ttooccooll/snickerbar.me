@@ -13,9 +13,10 @@ Only load it with small amounts you're happy to give away. This is still a beta 
    - **Claim link** QR codes work with any phone camera: they open this wallet with the treat ready to claim. **Raw ecash token** QR codes are smaller but need a Cashu wallet app. You can point claim links at another wallet that accepts `?token=` under **Claim link settings**.
 3. Hit **Fill the bag**, then either:
    - **Print**: four cards fit on a Letter/A4 page. The ink-saver toggle prints them on white.
-   - **Porch mode** 🚪: no printer needed. Prop a tablet or phone at the door and it shows one giant QR code at a time. When a parent claims it, a ghost celebrates and the next treat pops up. The screen stays awake, and it tells you when you're out of candy.
+   - **Porch mode** 🚪: no printer needed. Prop a tablet or phone at the door and it shows one giant QR code at a time. When a parent claims it, a ghost celebrates and the next treat pops up. The screen stays awake and plays a ghostly "wooo" plus a candy chime for every claim (🔊 to mute). When you run out, it shows how many sats went to how many trick-or-treaters, and **Fill another bag** makes more treats without leaving the door.
 4. Keep the sheet open to get a "👻 Treat #3 was just claimed!" alert (with candy rain) whenever a treat is claimed. Reopen it any time from the **🎃 unclaimed treats** button on the home screen.
-5. After Halloween, use **Take back unclaimed treats** (↶) to move any unclaimed sats back into your wallet. Their printed QR codes stop working.
+5. Each card gets its own monster (🎃 👻 🦇 🕷️ 🧙 💀) and color.
+6. After Halloween (the home screen reminds you in November), use **Take back unclaimed treats** (↶) to move any unclaimed sats back into your wallet. Their printed QR codes stop working.
 
 Parents who open a claim link skip the wallet intro, see "🎃 You got a treat!", and get a shower of candy when they claim it.
 

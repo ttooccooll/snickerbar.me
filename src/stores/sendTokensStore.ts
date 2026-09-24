@@ -12,6 +12,7 @@ export type TreatSettings = {
   qrStyle: "link" | "token";
   claimBaseUrl: string;
   inkSaver: boolean;
+  sound: boolean;
 };
 
 export const defaultTreatSettings = (): TreatSettings => ({
@@ -25,6 +26,7 @@ export const defaultTreatSettings = (): TreatSettings => ({
   qrStyle: "link",
   claimBaseUrl: "",
   inkSaver: false,
+  sound: true,
 });
 
 export const useSendTokensStore = defineStore("sendTokensStore", {

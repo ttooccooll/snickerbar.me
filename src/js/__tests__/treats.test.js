@@ -3,6 +3,9 @@ import {
   MAX_TREATS,
   buildClaimLink,
   daysUntilHalloween,
+  isAfterHalloween,
+  mascotFor,
+  MASCOTS,
   isHexKeysetId,
   maxBagTotal,
   noteCount,
@@ -118,5 +121,21 @@ describe("daysUntilHalloween", () => {
 
   it("rolls over to next year after Halloween", () => {
     expect(daysUntilHalloween(new Date(2026, 10, 1))).toEqual(364);
+  });
+});
+
+describe("mascotFor", () => {
+  it("cycles through the monsters", () => {
+    expect(mascotFor(0)).toBe(MASCOTS[0]);
+    expect(mascotFor(MASCOTS.length + 1)).toBe(MASCOTS[1]);
+  });
+});
+
+describe("isAfterHalloween", () => {
+  it("is true in November and December only", () => {
+    expect(isAfterHalloween(new Date(2026, 9, 31))).toBe(false);
+    expect(isAfterHalloween(new Date(2026, 10, 1))).toBe(true);
+    expect(isAfterHalloween(new Date(2026, 11, 31))).toBe(true);
+    expect(isAfterHalloween(new Date(2027, 0, 1))).toBe(false);
   });
 });

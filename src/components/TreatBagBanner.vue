@@ -2,7 +2,8 @@
   <div v-if="pendingTreats.length" class="row justify-center q-mt-sm">
     <q-btn
       rounded
-      outline
+      :outline="!afterHalloween"
+      :unelevated="afterHalloween"
       no-caps
       color="primary"
       class="q-px-md"
@@ -10,6 +11,7 @@
       @click="openTreatBag"
     >
       <span aria-hidden="true" class="q-mr-sm">🎃</span>
+      <span v-if="afterHalloween">Halloween's over! Take back </span>
       {{ pendingTreats.length }} unclaimed treat{{
         pendingTreats.length == 1 ? "" : "s"
       }}
@@ -23,10 +25,16 @@ import { mapState, mapWritableState } from "pinia";
 import { useTokensStore } from "src/stores/tokens";
 import { useMintsStore } from "src/stores/mints";
 import { useSendTokensStore } from "src/stores/sendTokensStore";
+import { isAfterHalloween } from "src/js/treats";
 
 export default defineComponent({
   name: "TreatBagBanner",
   mixins: [windowMixin],
+  data: function () {
+    return {
+      afterHalloween: isAfterHalloween(),
+    };
+  },
   computed: {
     ...mapState(useTokensStore, ["historyTokens"]),
     ...mapState(useMintsStore, ["activeUnit"]),
