@@ -20,7 +20,7 @@ Only load it with small amounts you're happy to give away. This is still a beta 
 
 Parents who open a claim link skip the wallet intro, see "🎃 You got a treat!", and get a shower of candy when they claim it.
 
-Mints that charge a fee per transaction are not supported yet. The treat bag will tell you to pick a fee-free mint.
+Mints that charge a small fee per transaction (like mint.coinos.io) work too. The treat bag tells you about the fee, and parents get a sat or so less than the card says when they claim it.
 
 ## Trunk-or-Treat (no screen)
 

@@ -19,6 +19,7 @@ import axios from "axios";
 import { date } from "quasar";
 import { splitAmount } from "@cashu/cashu-ts/dist/lib/es5/utils";
 import { isHexKeysetId } from "src/js/treats";
+import { inputFeeForProofs } from "src/js/fees";
 
 // HACK: this is a workaround so that the catch block in the melt function does not throw an error when the user exits the app
 // before the payment is completed. This is necessary because the catch block in the melt function would otherwise remove all
@@ -351,6 +352,46 @@ export const useWalletStore = defineStore("wallet", {
       mintStore.removeProofs(proofsToSplit);
       return { keepProofs, sendProofs };
     },
+    /**
+     * The fee the mint charges for spending these proofs (NUT-02), 0 on
+     * fee-free mints.
+     */
+    inputFee: function (proofs: Proof[]): number {
+      const mintStore = useMintsStore();
+      const ppkByKeysetId = new Map<string, number>();
+      mintStore.mints.forEach((m) =>
+        m.keysets.forEach((k: FeeKeyset) => ppkByKeysetId.set(k.id, k.input_fee_ppk ?? 0))
+      );
+      return inputFeeForProofs(proofs, ppkByKeysetId);
+    },
+    /**
+     * Swaps `inputs` at the active mint into `sendAmount` plus change, after
+     * the mint took its input fee. cashu-ts 1.x can't do this itself (it
+     * always asks for outputs worth all of the inputs), so we build the swap
+     * from its building blocks.
+     */
+    swapWithFees: async function (inputs: Proof[], sendAmount: number, keysetId: string, counter: number): Promise<{ keepProofs: Proof[], sendProofs: Proof[] }> {
+      const wallet = this.wallet;
+      const total = inputs.reduce((s, p) => s + p.amount, 0);
+      const fee = this.inputFee(inputs);
+      const keepAmount = total - fee - sendAmount;
+      if (sendAmount <= 0 || keepAmount < 0) {
+        throw new Error("Not enough ecash to cover the mint's fee.");
+      }
+      const keepAmounts = keepAmount > 0 ? splitAmount(keepAmount) : [];
+      const sendAmounts = splitAmount(sendAmount);
+      const keys = await wallet.getKeys(keysetId);
+      const outputs = wallet.createBlindedMessages([...keepAmounts, ...sendAmounts], keysetId, counter);
+      const { signatures } = await wallet.mint.split({
+        inputs: inputs.map((p: any) => ({ id: p.id, amount: p.amount, secret: p.secret, C: p.C, ...(p.witness ? { witness: p.witness } : {}) })),
+        outputs: outputs.blindedMessages,
+      });
+      const newProofs = wallet.constructProofs(signatures, outputs.rs, outputs.secrets, keys);
+      return {
+        keepProofs: newProofs.slice(0, keepAmounts.length),
+        sendProofs: newProofs.slice(keepAmounts.length),
+      };
+    },
     splitToSend: async function (proofs: WalletProof[], amount: number, invalidate: boolean = false): Promise<{ keepProofs: Proof[], sendProofs: Proof[] }> {
       /*
       splits proofs so the user can keep firstProofs, send scndProofs.
@@ -367,13 +408,30 @@ export const useWalletStore = defineStore("wallet", {
       try {
         const spendableProofs = this.spendableProofs(proofs, amount);
         proofsToSplit = this.coinSelect(spendableProofs, amount);
-        const totalAmount = proofsToSplit.reduce((s, t) => (s += t.amount), 0);
+        let totalAmount = proofsToSplit.reduce((s, t) => (s += t.amount), 0);
+        // splitting costs a fee on some mints: pick enough for the amount plus
+        // the fee (which grows with every extra note we pick)
+        let fee = totalAmount != amount ? this.inputFee(proofsToSplit) : 0;
+        for (let i = 0; fee > 0 && totalAmount < amount + fee && i < 5; i++) {
+          proofsToSplit = this.coinSelect(spendableProofs, amount + fee);
+          totalAmount = proofsToSplit.reduce((s, t) => (s += t.amount), 0);
+          fee = this.inputFee(proofsToSplit);
+        }
+        if (fee > 0 && totalAmount < amount + fee) {
+          proofsToSplit = [];
+          notifyWarning("Balance is too low", "There isn't enough left to also pay the mint's fee.");
+          throw new Error("Balance too low to cover the mint's fee.");
+        }
         proofsStore.setReserved(proofsToSplit, true);
         let keepProofs: Proof[] = [];
         let sendProofs: Proof[] = [];
         if (totalAmount != amount) {
           const counter = this.keysetCounter(keysetId);
-          ({ returnChange: keepProofs, send: sendProofs } = await this.wallet.send(amount, proofsToSplit, { counter }));
+          if (fee > 0) {
+            ({ keepProofs, sendProofs } = await this.swapWithFees(proofsToSplit, amount, keysetId, counter));
+          } else {
+            ({ returnChange: keepProofs, send: sendProofs } = await this.wallet.send(amount, proofsToSplit, { counter }));
+          }
           this.increaseKeysetCounter(keysetId, keepProofs.length + sendProofs.length);
 
           mintStore.removeProofs(proofsToSplit);
@@ -441,6 +499,7 @@ export const useWalletStore = defineStore("wallet", {
       await mintStore.activateMintUrl(token.getMint(tokenJson), false, false, tokenJson.unit);
 
       const amount = proofs.reduce((s, t) => (s += t.amount), 0);
+      const tokenProofs = proofs;
       await uIStore.lockMutex();
       try {
         // redeem
@@ -452,7 +511,13 @@ export const useWalletStore = defineStore("wallet", {
         let tokenCts: Token
         let proofs: Proof[]
         try {
-          proofs = await this.wallet.receive(receiveStore.receiveData.tokensBase64, { counter, preference, privkey })
+          const fee = privkey ? 0 : this.inputFee(tokenProofs);
+          if (fee > 0) {
+            // the mint keeps its fee, we get the rest
+            ({ sendProofs: proofs } = await this.swapWithFees(tokenProofs, amount - fee, keysetId, counter));
+          } else {
+            proofs = await this.wallet.receive(receiveStore.receiveData.tokensBase64, { counter, preference, privkey })
+          }
           this.increaseKeysetCounter(keysetId, proofs.length);
         } catch (error: any) {
           console.error(error);
@@ -467,12 +532,15 @@ export const useWalletStore = defineStore("wallet", {
         // gather all token.token[i].proofs
         mintStore.addProofs(proofs);
 
+        // what actually arrived (less than the token on mints with fees)
+        const received = proofs.reduce((s, p) => s + p.amount, 0);
+
         // if token is already in history, set to paid, else add to history
         if (tokenStore.historyTokens.find((t) => t.token === receiveStore.receiveData.tokensBase64)) {
           tokenStore.setTokenPaid(receiveStore.receiveData.tokensBase64);
         } else {
           tokenStore.addPaidToken({
-            amount,
+            amount: received,
             serializedProofs: receiveStore.receiveData.tokensBase64,
             unit: mintStore.activeUnit,
             mint: mintStore.activeMintUrl,
@@ -484,10 +552,10 @@ export const useWalletStore = defineStore("wallet", {
           // a parent claimed a printed treat: candy rain, then show them how
           // to keep and spend their new wallet
           uIStore.celebrate();
-          uIStore.treatClaimed = { amount, unit: mintStore.activeUnit };
+          uIStore.treatClaimed = { amount: received, unit: mintStore.activeUnit };
         } else {
           if (!!window.navigator.vibrate) navigator.vibrate(200);
-          notifySuccess("Received " + uIStore.formatCurrency(amount, mintStore.activeUnit));
+          notifySuccess("Received " + uIStore.formatCurrency(received, mintStore.activeUnit));
         }
       } catch (error: any) {
         console.error(error);
@@ -669,10 +737,23 @@ export const useWalletStore = defineStore("wallet", {
       let keysetCounterIncrease = 0;
 
       // get right amount of proofs to send
-      const { keepProofs, sendProofs } = await this.splitToSend(
+      let { keepProofs, sendProofs } = await this.splitToSend(
         mintStore.activeMint().unitProofs(mintStore.activeUnit),
         amount
       );
+      // mints with fees also take an input fee on top of amount + fee_reserve
+      for (let i = 0; i < 3; i++) {
+        const needed = amount + this.inputFee(sendProofs);
+        if (proofsStore.sumProofs(sendProofs) >= needed) {
+          break;
+        }
+        // not enough for the fee yet: put these back and pick again
+        proofsStore.setReserved(sendProofs, false);
+        ({ keepProofs, sendProofs } = await this.splitToSend(
+          mintStore.activeMint().unitProofs(mintStore.activeUnit),
+          needed
+        ));
+      }
       if (sendProofs.length == 0) {
         throw new Error("could not split proofs.");
       }
@@ -707,7 +788,8 @@ export const useWalletStore = defineStore("wallet", {
         if (data.isPaid != true) {
           throw new Error("Invoice not paid.");
         }
-        let amount_paid = amount - proofsStore.sumProofs(data.change)
+        // everything we handed over minus the change (includes any mint fee)
+        let amount_paid = proofsStore.sumProofs(sendProofs) - proofsStore.sumProofs(data.change)
         if (!!window.navigator.vibrate) navigator.vibrate(200);
 
         notifySuccess("Paid " + uIStore.formatCurrency(amount_paid, mintStore.activeUnit) + " via Lightning");
