@@ -23,6 +23,8 @@ export const useUiStore = defineStore("ui", {
     globalMutexLock: false,
     // bumped to make it rain candy (see SpookyEffects.vue)
     candyRain: 0,
+    // set after a parent claims a printed treat (see TreatClaimedDialog.vue)
+    treatClaimed: null as null | { amount: number; unit: string },
   }),
   actions: {
     async lockMutex() {

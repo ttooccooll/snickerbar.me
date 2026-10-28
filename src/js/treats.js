@@ -111,6 +111,76 @@ export function buildClaimLink(baseUrl, token) {
   return `${url}${sep}token=${token}`;
 }
 
+// where claim links point when this wallet itself can't be reached by phones
+export const PUBLIC_CLAIM_WALLET = "https://snickerbar.me/";
+
+/**
+ * True for addresses a parent's phone can't open: this computer
+ * (localhost), the home network (192.168.x.x and friends) and app shells.
+ */
+export function isLocalHostname(hostname) {
+  const h = String(hostname || "")
+    .toLowerCase()
+    .replace(/^\[|\]$/g, "");
+  if (
+    !h ||
+    h === "localhost" ||
+    h.endsWith(".localhost") ||
+    h.endsWith(".local") ||
+    h === "::1" ||
+    h === "0.0.0.0"
+  ) {
+    return true;
+  }
+  const ip = h.match(/^(\d+)\.(\d+)\.(\d+)\.(\d+)$/);
+  if (!ip) {
+    return false;
+  }
+  const [a, b] = [Number(ip[1]), Number(ip[2])];
+  return (
+    a === 0 ||
+    a === 10 ||
+    a === 127 ||
+    (a === 169 && b === 254) ||
+    (a === 172 && b >= 16 && b <= 31) ||
+    (a === 192 && b === 168)
+  );
+}
+
+/**
+ * The wallet printed claim links open: this wallet when it runs on a public
+ * address, otherwise the public Snickerbar wallet. Printing from a dev
+ * server on a laptop must never put "localhost" on the cards.
+ */
+export function defaultClaimBase(location) {
+  if (
+    isLocalHostname(location.hostname) ||
+    !/^https?:$/.test(location.protocol)
+  ) {
+    return PUBLIC_CLAIM_WALLET;
+  }
+  return location.origin + location.pathname;
+}
+
+/**
+ * What's wrong with a claim link address, in plain words, or "" if it's fine.
+ */
+export function claimLinkProblem(baseUrl) {
+  let url;
+  try {
+    url = new URL(baseUrl);
+  } catch (e) {
+    return "That doesn't look like a web address. It should start with https://";
+  }
+  if (isLocalHostname(url.hostname)) {
+    return `Phones can't open ${url.host}, it only exists on this computer or network. Use a public wallet address like ${PUBLIC_CLAIM_WALLET}`;
+  }
+  if (url.protocol !== "https:") {
+    return "Use an https:// address, phones may refuse to open plain http links.";
+  }
+  return "";
+}
+
 /**
  * Keyset IDs are hex strings: "00…" (v1) and "01…" (v2, used by 2025+ mints).
  * Very old mints used base64 IDs.

@@ -13,6 +13,8 @@ export type TreatSettings = {
   claimBaseUrl: string;
   inkSaver: boolean;
   sound: boolean;
+  // print a "Free Bitcoin Treats" sign as the first page
+  trunkSign: boolean;
 };
 
 export const defaultTreatSettings = (): TreatSettings => ({
@@ -27,6 +29,7 @@ export const defaultTreatSettings = (): TreatSettings => ({
   claimBaseUrl: "",
   inkSaver: false,
   sound: true,
+  trunkSign: false,
 });
 
 export const useSendTokensStore = defineStore("sendTokensStore", {

@@ -83,7 +83,9 @@ export default defineComponent({
   left: 0;
   right: 0;
   margin: 0 auto;
-  z-index: 9999;
+  /* below dialogs (6000): the Send/Receive sheets open at the bottom and the
+     prompt used to cover their buttons on iPhones */
+  z-index: 1500;
   text-align: center;
   display: flex;
   flex-direction: column; /* Add this line */
