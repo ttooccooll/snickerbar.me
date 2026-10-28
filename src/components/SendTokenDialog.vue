@@ -185,8 +185,12 @@
               >
             </span>
           </div>
-          <div v-if="feeMintWarning" class="col-12 text-warning q-mt-xs">
-            {{ feeMintWarning }}
+          <div
+            v-if="feeNote"
+            class="col-12 text-caption text-grey-5 q-mt-xs"
+            data-test="fee-note"
+          >
+            {{ feeNote }}
           </div>
         </div>
 
@@ -195,9 +199,7 @@
             v-if="!insufficientBalance"
             color="primary"
             rounded
-            :disable="
-              !!planError || !!feeMintWarning || !!claimLinkWarning || filling
-            "
+            :disable="!!planError || !!claimLinkWarning || filling"
             :loading="filling"
             @click="fillBag"
             data-test="fill-bag"
@@ -434,6 +436,7 @@ import { useMintsStore } from "src/stores/mints";
 import { useTokensStore } from "src/stores/tokens";
 import { notifyError, notifySuccess, notifyWarning } from "src/js/notify";
 import token from "src/js/token";
+import { feeForCount } from "src/js/fees";
 import {
   MAX_TREATS,
   claimLinkProblem,
@@ -521,25 +524,49 @@ export default defineComponent({
       }
     },
     insufficientBalance: function () {
-      return !this.planError && this.bagTotal > this.mintBalance;
+      return (
+        !this.planError &&
+        this.bagTotal + this.makingFeeEstimate > this.mintBalance
+      );
     },
-    feeMintWarning: function () {
-      // this wallet can't pay NUT-02 input fees yet
+    mintFeePpk: function () {
+      // the NUT-02 fee (parts per thousand sats per note) of this mint's
+      // keysets we'd be spending from
       let keysets = [];
       try {
         keysets = this.activeMint().mint.keysets.filter(
           (k) => k.unit === this.activeUnit
         );
       } catch (e) {
-        return "";
+        return 0;
       }
       const heldIds = new Set(this.activeProofs.map((p) => p.id));
-      const feeKeyset = keysets.find(
-        (k) => k.input_fee_ppk > 0 && (k.active || heldIds.has(k.id))
+      return keysets
+        .filter((k) => k.active || heldIds.has(k.id))
+        .reduce((max, k) => Math.max(max, Number(k.input_fee_ppk) || 0), 0);
+    },
+    makingFeeEstimate: function () {
+      // making a treat usually spends a few notes
+      const count = Number(this.treatSettings.count) || 0;
+      return count * feeForCount(4, this.mintFeePpk);
+    },
+    feeNote: function () {
+      if (!this.mintFeePpk) {
+        return "";
+      }
+      const s = this.treatSettings;
+      const biggest =
+        s.mode === "mystery"
+          ? Number(s.maxAmount) || 0
+          : s.mode === "custom"
+          ? Math.max(0, ...(s.customAmounts || []).map((a) => Number(a) || 0))
+          : Number(s.amount) || 0;
+      const claimFee = feeForCount(
+        Math.max(1, noteCount(this.toBaseUnit(biggest))),
+        this.mintFeePpk
       );
-      return feeKeyset
-        ? "This mint charges a fee for every transaction, which this wallet can't handle yet. Pick a fee-free mint for trick-or-treaters."
-        : "";
+      const makeFee = feeForCount(4, this.mintFeePpk);
+      return `This mint charges a small fee on every transaction. Making each treat costs you about ${makeFee} sat, and parents get about ${claimFee} sat less than the card says when they claim it.`;
     },
     scanTip: function () {
       if (this.treatSettings.mode !== "same") {
