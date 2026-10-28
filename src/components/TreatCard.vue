@@ -38,13 +38,13 @@
       real bitcoin. Whoever claims it first keeps it.
       <ol v-if="qrStyle === 'link'" class="treat-card__steps">
         <li>Scan the big code with your phone camera.</li>
-        <li>Tap <b>Receive</b> in the wallet that opens.</li>
-        <li>That's it. Any Cashu wallet can scan it too.</li>
+        <li>Tap <b>Receive</b>: a free wallet opens, no app needed.</li>
+        <li>To spend: <b>Send → Lightning</b>, scan any Lightning QR.</li>
       </ol>
       <ol v-else class="treat-card__steps">
         <li>Get a free Cashu wallet ("Free wallet" code).</li>
-        <li>Scan the big code with that wallet.</li>
-        <li>Tap <b>Receive</b>. Claim it soon!</li>
+        <li>Scan the big code with it and tap <b>Receive</b>.</li>
+        <li>To spend: pay any Lightning QR from that wallet.</li>
       </ol>
     </div>
     <div class="treat-card__links">
@@ -129,7 +129,9 @@ export default defineComponent({
         .reduce((sum, p) => sum + p.amount, 0);
       const unit = token.getUnit(this.decoded);
       if (unit === "sat") {
-        return `${amount} ${amount === 1 ? "sat" : "sats"}`;
+        return `${new Intl.NumberFormat().format(amount)} ${
+          amount === 1 ? "sat" : "sats"
+        }`;
       }
       // always show the real amount on the card, even if the balance is hidden
       return this.formatCurrency(amount, unit, true);

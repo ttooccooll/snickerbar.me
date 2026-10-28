@@ -2,6 +2,10 @@ import { describe, expect, it } from "vitest";
 import {
   MAX_TREATS,
   buildClaimLink,
+  claimLinkProblem,
+  defaultClaimBase,
+  isLocalHostname,
+  PUBLIC_CLAIM_WALLET,
   daysUntilHalloween,
   isAfterHalloween,
   mascotFor,
@@ -137,5 +141,73 @@ describe("isAfterHalloween", () => {
     expect(isAfterHalloween(new Date(2026, 10, 1))).toBe(true);
     expect(isAfterHalloween(new Date(2026, 11, 31))).toBe(true);
     expect(isAfterHalloween(new Date(2027, 0, 1))).toBe(false);
+  });
+});
+
+describe("isLocalHostname", () => {
+  it.each([
+    "localhost",
+    "LOCALHOST",
+    "127.0.0.1",
+    "[::1]",
+    "192.168.1.20",
+    "10.0.0.5",
+    "172.20.1.1",
+    "169.254.3.4",
+    "macbook.local",
+    "",
+  ])("can't be opened by a parent's phone: %s", (host) => {
+    expect(isLocalHostname(host)).toBe(true);
+  });
+
+  it.each(["snickerbar.me", "wallet.example.com", "8.8.8.8", "172.32.0.1"])(
+    "is public: %s",
+    (host) => {
+      expect(isLocalHostname(host)).toBe(false);
+    }
+  );
+});
+
+describe("defaultClaimBase", () => {
+  const loc = (href) => new URL(href);
+
+  it("uses this wallet when it runs on a public address", () => {
+    expect(defaultClaimBase(loc("https://snickerbar.me/"))).toEqual(
+      "https://snickerbar.me/"
+    );
+    expect(defaultClaimBase(loc("https://example.com/wallet/"))).toEqual(
+      "https://example.com/wallet/"
+    );
+  });
+
+  it("never puts a laptop's dev server on the cards", () => {
+    expect(defaultClaimBase(loc("https://localhost:8080/"))).toEqual(
+      PUBLIC_CLAIM_WALLET
+    );
+    expect(defaultClaimBase(loc("https://192.168.1.20:8080/"))).toEqual(
+      PUBLIC_CLAIM_WALLET
+    );
+    expect(
+      defaultClaimBase({
+        hostname: "localhost",
+        protocol: "capacitor:",
+        origin: "capacitor://localhost",
+        pathname: "/",
+      })
+    ).toEqual(PUBLIC_CLAIM_WALLET);
+  });
+});
+
+describe("claimLinkProblem", () => {
+  it("accepts public https wallets", () => {
+    expect(claimLinkProblem("https://snickerbar.me/")).toEqual("");
+  });
+
+  it("explains what's wrong with the others", () => {
+    expect(claimLinkProblem("https://localhost:8080/")).toMatch(
+      /can't open localhost:8080/
+    );
+    expect(claimLinkProblem("http://example.com/")).toMatch(/https/);
+    expect(claimLinkProblem("snickerbar")).toMatch(/web address/);
   });
 });

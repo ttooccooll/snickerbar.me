@@ -136,7 +136,7 @@
         <div class="text-caption text-grey-5 q-mb-md">
           <span v-if="treatSettings.qrStyle === 'link'"
             >Works with any phone camera: it opens {{ claimHost }} and claims
-            the treat.</span
+            the treat. No app needed.</span
           >
           <span v-else
             >Needs a Cashu wallet app to scan. Smaller QR codes.</span
@@ -153,12 +153,19 @@
             v-model.trim="treatSettings.claimBaseUrl"
             :placeholder="defaultClaimBaseUrl"
             label="Wallet that opens the link"
-            hint="Leave empty to use this wallet. Must accept ?token=…"
+            :hint="`Leave empty to use ${defaultClaimBaseUrl}. Must accept ?token=…`"
             outlined
             dense
             class="q-mt-sm"
           />
         </q-expansion-item>
+        <div
+          v-if="claimLinkWarning"
+          class="text-warning text-body2 q-mb-md"
+          data-test="claim-link-warning"
+        >
+          ⚠️ {{ claimLinkWarning }}
+        </div>
 
         <ChooseMint :ticker-short="tickerShort" />
 
@@ -188,7 +195,9 @@
             v-if="!insufficientBalance"
             color="primary"
             rounded
-            :disable="!!planError || !!feeMintWarning || filling"
+            :disable="
+              !!planError || !!feeMintWarning || !!claimLinkWarning || filling
+            "
             :loading="filling"
             @click="fillBag"
             data-test="fill-bag"
@@ -254,6 +263,21 @@
           >
           <q-btn flat dense icon="print" @click="printPage" label="Print" />
           <q-btn
+            v-if="!isSingle"
+            flat
+            dense
+            icon="campaign"
+            label="Sign"
+            :class="{ 'treat-toolbar__on': treatSettings.trunkSign }"
+            data-test="trunk-sign-toggle"
+            @click="treatSettings.trunkSign = !treatSettings.trunkSign"
+            ><q-tooltip>{{
+              treatSettings.trunkSign
+                ? "Don't print the trunk sign"
+                : 'Also print a big "Free Bitcoin Treats" sign for your trunk'
+            }}</q-tooltip></q-btn
+          >
+          <q-btn
             flat
             dense
             :icon="
@@ -300,6 +324,10 @@
           <q-btn flat dense @click="showSendTokens = false" label="Close" />
         </div>
       </div>
+      <TrunkSign
+        v-if="treatSettings.trunkSign && !isSingle"
+        :ink-saver="treatSettings.inkSaver"
+      />
       <div
         class="treat-sheet"
         :class="{
@@ -408,6 +436,8 @@ import { notifyError, notifySuccess, notifyWarning } from "src/js/notify";
 import token from "src/js/token";
 import {
   MAX_TREATS,
+  claimLinkProblem,
+  defaultClaimBase,
   maxBagTotal,
   noteCount,
   planTreatAmounts,
@@ -415,6 +445,7 @@ import {
 import ChooseMint from "components/ChooseMint.vue";
 import TreatCard from "components/TreatCard.vue";
 import PorchMode from "components/PorchMode.vue";
+import TrunkSign from "components/TrunkSign.vue";
 
 // how often the open treat sheet asks the mint which treats were claimed
 const CLAIM_POLL_MS = 20000;
@@ -428,6 +459,7 @@ export default defineComponent({
     ChooseMint,
     TreatCard,
     PorchMode,
+    TrunkSign,
   },
   data: function () {
     return {
@@ -442,7 +474,8 @@ export default defineComponent({
       reclaiming: false,
       showReclaimDialog: false,
       showDeleteDialog: false,
-      defaultClaimBaseUrl: window.location.origin + window.location.pathname,
+      // never "localhost": phones have to be able to open the printed links
+      defaultClaimBaseUrl: defaultClaimBase(window.location),
     };
   },
   computed: {
@@ -524,6 +557,11 @@ export default defineComponent({
     },
     claimBaseUrl: function () {
       return this.treatSettings.claimBaseUrl || this.defaultClaimBaseUrl;
+    },
+    claimLinkWarning: function () {
+      return this.treatSettings.qrStyle === "link"
+        ? claimLinkProblem(this.claimBaseUrl)
+        : "";
     },
     claimHost: function () {
       try {
@@ -789,6 +827,10 @@ body .q-dialog .treat-sheet-card {
   padding: 8px 12px;
   background: #1a1025;
   color: #ffb347;
+}
+
+.treat-toolbar__on {
+  background: rgba(255, 117, 24, 0.25);
 }
 
 .treat-toolbar__actions {

@@ -158,6 +158,9 @@
 
     <!-- RECEIVE TOKENS DIALOG  -->
     <ReceiveTokenDialog v-model="showReceiveTokens" />
+
+    <!-- AFTER A PARENT CLAIMED A PRINTED TREAT -->
+    <TreatClaimedDialog />
   </div>
 </template>
 <style>
@@ -202,6 +205,7 @@ import QrcodeReader from "components/QrcodeReader.vue";
 import iOSPWAPrompt from "components/iOSPWAPrompt.vue";
 import TreatBagBanner from "components/TreatBagBanner.vue";
 import HalloweenCountdown from "components/HalloweenCountdown.vue";
+import TreatClaimedDialog from "components/TreatClaimedDialog.vue";
 // pinia stores
 import { mapActions, mapState, mapWritableState } from "pinia";
 import { useMintsStore } from "src/stores/mints";
@@ -238,6 +242,7 @@ export default {
     iOSPWAPrompt,
     TreatBagBanner,
     HalloweenCountdown,
+    TreatClaimedDialog,
   },
   data: function () {
     return {

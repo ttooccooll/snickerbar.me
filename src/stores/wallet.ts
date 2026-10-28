@@ -481,8 +481,10 @@ export const useWalletStore = defineStore("wallet", {
 
 
         if (fromClaimLink) {
+          // a parent claimed a printed treat: candy rain, then show them how
+          // to keep and spend their new wallet
           uIStore.celebrate();
-          notifySuccess("🎃 You got " + uIStore.formatCurrency(amount, mintStore.activeUnit, true) + " of bitcoin! Happy Halloween!");
+          uIStore.treatClaimed = { amount, unit: mintStore.activeUnit };
         } else {
           if (!!window.navigator.vibrate) navigator.vibrate(200);
           notifySuccess("Received " + uIStore.formatCurrency(amount, mintStore.activeUnit));
