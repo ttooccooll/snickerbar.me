@@ -134,7 +134,11 @@
     <PayInvoiceDialog v-model="payInvoiceData.show" />
 
     <!-- QR CODE SCANNER  -->
-    <q-dialog v-model="camera.show" backdrop-filter="blur(2px) brightness(60%)">
+    <q-dialog
+      v-model="camera.show"
+      :maximized="$q.screen.lt.sm"
+      backdrop-filter="blur(2px) brightness(60%)"
+    >
       <QrcodeReader @decode="decodeQR" />
     </q-dialog>
 
@@ -158,6 +162,9 @@
 
     <!-- RECEIVE TOKENS DIALOG  -->
     <ReceiveTokenDialog v-model="showReceiveTokens" />
+
+    <!-- A PARENT SCANNED A PRINTED TREAT -->
+    <ClaimTreatDialog />
 
     <!-- AFTER A PARENT CLAIMED A PRINTED TREAT -->
     <TreatClaimedDialog />
@@ -206,6 +213,7 @@ import iOSPWAPrompt from "components/iOSPWAPrompt.vue";
 import TreatBagBanner from "components/TreatBagBanner.vue";
 import HalloweenCountdown from "components/HalloweenCountdown.vue";
 import TreatClaimedDialog from "components/TreatClaimedDialog.vue";
+import ClaimTreatDialog from "components/ClaimTreatDialog.vue";
 // pinia stores
 import { mapActions, mapState, mapWritableState } from "pinia";
 import { useMintsStore } from "src/stores/mints";
@@ -243,6 +251,7 @@ export default {
     TreatBagBanner,
     HalloweenCountdown,
     TreatClaimedDialog,
+    ClaimTreatDialog,
   },
   data: function () {
     return {
@@ -291,6 +300,7 @@ export default {
     ...mapWritableState(useUiStore, ["expandHistory"]),
     ...mapWritableState(useReceiveTokensStore, [
       "showReceiveTokens",
+      "showClaimTreat",
       "fromClaimLink",
       "receiveData",
     ]),
@@ -433,8 +443,10 @@ export default {
     setWelcomeDialogSeen: function () {
       localStorage.setItem("cashu.welcomeDialogSeen", "seen");
       this.welcomeDialog.show = false;
-      // switch to settings tab
-      this.setTab("mints");
+      // no mint yet: open the tab where one gets added
+      if (!this.mints.length) {
+        this.setTab("mints");
+      }
 
       // if a wallet has been restored the "cashu.activeMintUrl" is not null
       if (!!localStorage.getItem("cashu.activeMintUrl")) {
@@ -597,7 +609,7 @@ export default {
       this.showAddMintDialog = true;
       this.addMintData = { url: addMintUrl };
     }
-    if (!localStorage.getItem("cashu.activeMintUrl")) {
+    if (!localStorage.getItem("cashu.activeMintUrl") && !params.get("token")) {
       this.setTab("mints");
     }
 
@@ -616,10 +628,16 @@ export default {
         }
       }
       if (!seen) {
-        // show receive token dialog
+        // a scanned treat card: the big "You got a treat!" screen
         this.receiveData.tokensBase64 = params.get("token");
         this.fromClaimLink = true;
-        this.showReceiveTokens = true;
+        this.showClaimTreat = true;
+        // after claiming, their sats show up in the history
+        this.setTab("history");
+      } else {
+        this.notifySuccess(
+          "You already claimed this treat. It's in your wallet!"
+        );
       }
     }
 

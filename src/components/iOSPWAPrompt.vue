@@ -26,6 +26,8 @@
       <div class="pwa-prompt-arrow"></div>
     </div>
   </transition>
+  <!-- room at the end of the page so the prompt doesn't hide the history -->
+  <div v-if="showIosPWAPrompt" class="pwa-prompt-spacer" aria-hidden="true" />
 </template>
 <script>
 import { defineComponent } from "vue";
@@ -105,6 +107,10 @@ export default defineComponent({
 
 .pwa-prompt-content q-icon {
   margin-right: 5px;
+}
+
+.pwa-prompt-spacer {
+  height: 96px;
 }
 
 .pwa-prompt-arrow {

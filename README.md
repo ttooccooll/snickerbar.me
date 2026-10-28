@@ -18,7 +18,7 @@ Only load it with small amounts you're happy to give away. This is still a beta 
 5. Each card gets its own monster (🎃 👻 🦇 🕷️ 🧙 💀) and color.
 6. After Halloween (the home screen reminds you in November), use **Take back unclaimed treats** (↶) to move any unclaimed sats back into your wallet. Their printed QR codes stop working.
 
-Parents who open a claim link skip the wallet intro, see "🎃 You got a treat!", and get a shower of candy when they claim it.
+Parents who open a claim link skip the wallet intro and get a full-screen "You got a treat!" with the amount in big numbers and one big **Receive my treat** button, then a shower of candy. If somebody already claimed that card, the screen says so right away.
 
 Mints that charge a small fee per transaction (like mint.coinos.io) work too. The treat bag tells you about the fee, and parents get a sat or so less than the card says when they claim it.
 
@@ -29,9 +29,9 @@ Everything happens on paper, so parents only need their phone:
 1. Make the treats anywhere: on snickerbar.me or on your own laptop with `npm run dev`. The claim links printed on the cards always open a public wallet (snickerbar.me by default) and never `localhost`. If you type in another wallet address, the treat bag warns you when phones couldn't open it.
 2. Pick amounts parents can actually spend. A few hundred sats or more survives Lightning fees, and powers of two (512, 1,024, 2,048, 4,096) make the smallest QR codes. A couple of 4,096-sat cards make great "free milkshake" prizes.
 3. **Fill the bag**, turn on **Sign** in the toolbar, then **Print**. Page 1 is a big "Free Bitcoin Treats" sign for your trunk, then the cards follow, up to four per page. Ink saver prints everything on white.
-4. Test one card the night before: scan it with your phone on cellular data (not Wi-Fi), tap **Receive**, and spend a few sats.
+4. Test one card the night before: scan it with your phone on cellular data (not Wi-Fi), tap **Receive my treat**, and spend a few sats.
 
-When a parent scans a card, the wallet skips its intro and shows "🎃 You got a treat!". One tap on **Receive**, a shower of candy, and a "You're all set" screen that explains how to keep the wallet (Add to Home Screen) and how to spend (**Send → Lightning**). After the event, reopen the bag from the 🎃 button on the home screen and **take back** whatever nobody claimed.
+When a parent scans a card, the wallet skips its intro and shows "You got a treat!" full screen. One tap on **Receive my treat**, a shower of candy, and a "You're all set" screen that explains how to keep the wallet (Add to Home Screen) and how to spend (**Send → Lightning**). Spending opens a big **Scan a QR code** button: it reads store QR codes in any form, including `lightning:` links, upper case invoices and `bitcoin:` QR codes that carry a Lightning invoice. After the event, reopen the bag from the 🎃 button on the home screen and **take back** whatever nobody claimed.
 
 # Cashu (cashu)
 

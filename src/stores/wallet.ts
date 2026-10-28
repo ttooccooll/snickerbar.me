@@ -20,6 +20,7 @@ import { date } from "quasar";
 import { splitAmount } from "@cashu/cashu-ts/dist/lib/es5/utils";
 import { isHexKeysetId } from "src/js/treats";
 import { inputFeeForProofs } from "src/js/fees";
+import { parseLightningRequest } from "src/js/lightning";
 
 // HACK: this is a workaround so that the catch block in the melt function does not throw an error when the user exits the app
 // before the payment is completed. This is necessary because the catch block in the melt function would otherwise remove all
@@ -1212,43 +1213,39 @@ export const useWalletStore = defineStore("wallet", {
       // get quote for this request
       await this.meltQuote()
     },
-    handleCashuToken: function () {
+    handleCashuToken: function (fromClaimLink = false) {
       this.payInvoiceData.show = false;
-      receiveStore.showReceiveTokens = true;
+      if (fromClaimLink) {
+        // a printed treat card, scanned from inside the wallet
+        receiveStore.fromClaimLink = true;
+        receiveStore.showClaimTreat = true;
+      } else {
+        receiveStore.showReceiveTokens = true;
+      }
     },
     handleP2PK: function (req: string) {
       notifyWarning("Locking ecash to a public key isn't supported in this wallet.");
     },
     decodeRequest: async function (req: string) {
       const p2pkStore = useP2PKStore()
+      req = (req || "").trim()
       this.payInvoiceData.input.request = req
-      if (req.toLowerCase().startsWith("lnbc")) {
-        this.payInvoiceData.input.request = req;
+      // invoices, LNURLs and Lightning addresses, in whatever form a store's
+      // QR code puts them (upper case, lightning: links, bitcoin: QR codes)
+      const ln = parseLightningRequest(req);
+      if (ln?.type === "bolt11") {
+        this.payInvoiceData.input.request = ln.value;
         await this.handleBolt11Invoice()
-      } else if (req.toLowerCase().startsWith("lightning:")) {
-        this.payInvoiceData.input.request = req.slice(10);
-        await this.handleBolt11Invoice()
-      } else if (req.toLowerCase().startsWith("lnurl:")) {
-        this.payInvoiceData.input.request = req.slice(6);
-        await this.lnurlPayFirst(this.payInvoiceData.input.request);
-      } else if (req.indexOf("lightning=lnurl1") !== -1) {
-        this.payInvoiceData.input.request = req
-          .split("lightning=")[1]
-          .split("&")[0];
-        await this.lnurlPayFirst(this.payInvoiceData.input.request);
-      } else if (
-        req.toLowerCase().startsWith("lnurl1") ||
-        req.match(/[\w.+-~_]+@[\w.+-~_]/)
-      ) {
-        this.payInvoiceData.input.request = req
-        await this.lnurlPayFirst(this.payInvoiceData.input.request);
+      } else if (ln) {
+        this.payInvoiceData.input.request = ln.value;
+        await this.lnurlPayFirst(ln.value);
       } else if (req.indexOf("cashuA") !== -1) {
         // very dirty way of parsing cashu tokens from either a pasted token or a URL like https://host.com?token=eyJwcm
         receiveStore.receiveData.tokensBase64 = extractToken(req, "cashuA");
-        this.handleCashuToken()
+        this.handleCashuToken(/[?&]token=cashu/.test(req))
       } else if (req.indexOf("cashuB") !== -1) {
         receiveStore.receiveData.tokensBase64 = extractToken(req, "cashuB");
-        this.handleCashuToken()
+        this.handleCashuToken(/[?&]token=cashu/.test(req))
       } else if (p2pkStore.isValidPubkey(req)) {
         this.handleP2PK(req)
       } else if (
@@ -1256,7 +1253,24 @@ export const useWalletStore = defineStore("wallet", {
       ) {
         const mintStore = useMintsStore();
         mintStore.addMintData = { url: req, nickname: "" }
+      } else if (/^bitcoin:|^(bc1|[13])[a-z0-9]{25,}$/i.test(req)) {
+        notifyWarning("That's an on-chain bitcoin address", "This wallet pays over Lightning. Ask for a Lightning QR code.");
+      } else if (req) {
+        notifyWarning("Couldn't read that code", "Scan or paste a Lightning invoice or address.");
       }
+    },
+    /**
+     * True when some of a token's ecash is spent already, i.e. somebody
+     * claimed the treat before us. Only asks the mint, history stays as is.
+     */
+    isTokenSpent: async function (tokenStr: string): Promise<boolean> {
+      const tokenJson = token.decode(tokenStr);
+      const enc = new TextEncoder();
+      const Ys = token
+        .getProofs(tokenJson)
+        .map((p) => hashToCurve(enc.encode(p.secret)).toHex(true));
+      const { states } = await new CashuMint(token.getMint(tokenJson)).check({ Ys });
+      return states.some((s) => s.state === CheckStateEnum.SPENT);
     },
     fetchBitcoinPriceUSD: async function () {
       var { data } = await axios.get(

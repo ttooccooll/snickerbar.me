@@ -75,8 +75,8 @@ export default {
 };
 </script>
 <template>
-  <q-card>
-    <div class="text-center">
+  <q-card class="qr-reader column no-wrap">
+    <div class="col column justify-center text-center">
       <div>
         <video ref="cameraEl" style="width: 100%"></video>
       </div>
@@ -108,7 +108,7 @@ export default {
         </div>
       </div>
     </div>
-    <div class="row q-my-sm">
+    <div class="row q-my-sm qr-reader__buttons">
       <q-btn
         unelevated
         v-if="canPasteFromClipboard"
@@ -122,3 +122,12 @@ export default {
     </div>
   </q-card>
 </template>
+<style>
+.q-dialog__inner--maximized > .qr-reader {
+  background: #000 !important;
+}
+
+.qr-reader__buttons {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+</style>
