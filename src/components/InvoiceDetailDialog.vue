@@ -138,6 +138,15 @@
             @click="copyText(invoiceData.bolt11)"
             >Copy</q-btn
           >
+          <q-btn
+            v-if="invoiceData.status === 'pending' && invoiceData.amount > 0"
+            class="q-mx-xs"
+            size="md"
+            flat
+            data-test="invoice-new-amount"
+            @click="newAmount"
+            >New amount</q-btn
+          >
           <q-btn v-close-popup flat color="grey" class="q-ml-auto">Close</q-btn>
         </div>
       </div>
@@ -194,6 +203,14 @@ export default defineComponent({
   methods: {
     ...mapActions(useWalletStore, ["requestMint", "lnurlPaySecond"]),
     ...mapActions(useMintsStore, ["toggleUnit"]),
+    // wrong amount? Back to the amount, the unpaid invoice just expires
+    newAmount: function () {
+      if (this.invoiceData.unit && this.invoiceData.unit !== "sat") {
+        this.invoiceData.amount = "";
+      }
+      this.invoiceData.bolt11 = "";
+      this.invoiceData.quote = "";
+    },
     requestMintButton: async function () {
       try {
         // if unit is USD, multiply by 100

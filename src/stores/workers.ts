@@ -35,8 +35,9 @@ export const useWorkersStore = defineStore("workers", {
           this.invoiceWorkerRunning = true;
           nInterval += 1;
 
-          // exit loop after 1m
-          if (nInterval > 12) {
+          // exit loop after 10m: paying from another wallet app on the
+          // same phone easily takes longer than a minute
+          if (nInterval > 120) {
             console.log("### stopping invoice check worker");
             this.clearAllWorkers();
           }

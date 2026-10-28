@@ -158,6 +158,10 @@
             v-model.trim="treatSettings.claimBaseUrl"
             :placeholder="defaultClaimBaseUrl"
             label="Wallet that opens the link"
+            type="url"
+            autocapitalize="off"
+            autocorrect="off"
+            spellcheck="false"
             :hint="`Leave empty to use ${defaultClaimBaseUrl}. Must accept ?token=…`"
             outlined
             dense
@@ -200,6 +204,15 @@
               >
             </span>
           </div>
+          <div
+            v-if="insufficientBalance"
+            class="col-12 text-body2 text-warning q-mt-xs"
+            data-test="bag-too-big"
+          >
+            That's {{ formatCurrency(shortfall, activeUnit, true) }} more than
+            this wallet has<span v-if="makingFeeEstimate">, with the fees</span
+            >.
+          </div>
         </div>
 
         <div class="row no-wrap items-center q-mt-sm">
@@ -219,6 +232,21 @@
               Wrapping {{ fillProgress.done + 1 }}/{{ fillProgress.total }}
             </template>
           </q-btn>
+          <!-- one tap to make what the balance pays for -->
+          <q-btn
+            v-else-if="fitCount >= 1"
+            color="primary"
+            rounded
+            unelevated
+            no-caps
+            class="treat-form__fill"
+            data-test="bag-fit"
+            @click="treatSettings.count = fitCount"
+            >Make {{ fitCount }} treat{{
+              fitCount == 1 ? "" : "s"
+            }}
+            instead</q-btn
+          >
           <q-btn
             v-else
             unelevated
@@ -582,6 +610,25 @@ export default defineComponent({
         !this.planError &&
         this.bagTotal + this.makingFeeEstimate > this.mintBalance
       );
+    },
+    shortfall: function () {
+      return Math.max(
+        0,
+        this.bagTotal + this.makingFeeEstimate - this.mintBalance
+      );
+    },
+    fitCount: function () {
+      // as many treats of this size as the balance pays for, fees included
+      if (this.treatSettings.mode !== "same") {
+        return 0;
+      }
+      const each =
+        this.toBaseUnit(Number(this.treatSettings.amount) || 0) +
+        feeForCount(4, this.mintFeePpk);
+      if (!(each > 0)) {
+        return 0;
+      }
+      return Math.min(MAX_TREATS, Math.floor(this.mintBalance / each));
     },
     mintFeePpk: function () {
       // the NUT-02 fee (parts per thousand sats per note) of this mint's

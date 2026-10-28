@@ -106,6 +106,10 @@
             @keydown.enter.prevent="sanitizeMintUrlAndShowAddDialog"
             v-model="addMintData.url"
             placeholder="https://"
+            type="url"
+            autocapitalize="off"
+            autocorrect="off"
+            spellcheck="false"
             ref="mintInput"
             class="q-pb-none q-mb-sm q-px-md"
           >

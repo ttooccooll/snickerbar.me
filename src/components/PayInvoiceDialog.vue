@@ -16,77 +16,150 @@
             <div class="col">
               <div class="text-subtitle1 text-grey-5">Pay with Lightning</div>
               <div
-                v-if="
-                  payInvoiceData.meltQuote.response &&
-                  payInvoiceData.meltQuote.response.amount > 0
-                "
+                v-if="quoteReady"
                 class="pay-card__amount"
                 data-test="pay-amount"
               >
-                {{
-                  formatCurrency(
-                    payInvoiceData.meltQuote.response.amount,
-                    activeUnit,
-                    true
-                  )
-                }}
+                {{ formatCurrency(cost.amount, activeUnit, true) }}
               </div>
               <div
                 v-else-if="payInvoiceData.meltQuote.error != ''"
                 class="pay-card__error"
+                data-test="pay-error"
               >
-                {{ payInvoiceData.meltQuote.error }}
+                {{ quoteErrorText }}
               </div>
               <div v-else class="pay-card__amount pay-card__amount--wait">
                 <q-spinner-hourglass size="0.8em" /> Getting the price…
+              </div>
+              <div v-if="lnurlpay" class="pay-card__to">
+                to <b>{{ lnurlpay.address || lnurlpay.domain }}</b>
               </div>
             </div>
             <ToggleUnit v-if="activeUnits.length > 1" class="q-mt-sm" />
           </div>
           <p
-            v-if="payInvoiceData.invoice.description"
+            v-if="payInvoiceData.invoice.description && !lnurlpay"
             class="text-wrap q-mt-md q-mb-none pay-card__memo"
           >
             “{{ payInvoiceData.invoice.description }}”
           </p>
-          <div class="q-mt-lg">
-            <ChooseMint v-if="mints.length > 1" :ticker-short="tickerShort" />
-            <div v-else class="text-body2 text-grey-5">
-              From your wallet ·
-              {{ formatCurrency(activeMintBalanceSafe, activeUnit, true) }}
-              available
+          <div v-if="quoteReady" class="pay-card__costs" data-test="pay-costs">
+            <div class="row">
+              <span class="col">Lightning fee</span>
+              <span
+                >up to
+                {{ formatCurrency(cost.feeReserve, activeUnit, true) }}</span
+              >
             </div>
+            <div v-if="cost.mintFee > 0" class="row">
+              <span class="col">Mint fee</span>
+              <span>{{ formatCurrency(cost.mintFee, activeUnit, true) }}</span>
+            </div>
+            <div class="row pay-card__total">
+              <span class="col">Total</span>
+              <span
+                >up to {{ formatCurrency(cost.total, activeUnit, true) }}</span
+              >
+            </div>
+            <div class="row text-grey-5">
+              <span class="col">In your wallet</span>
+              <span>{{ formatCurrency(cost.balance, activeUnit, true) }}</span>
+            </div>
+            <div class="text-caption text-grey-6 q-mt-xs">
+              Whatever part of the Lightning fee isn't needed comes back.
+            </div>
+          </div>
+          <div class="q-mt-md">
+            <ChooseMint v-if="mints.length > 1" :ticker-short="tickerShort" />
           </div>
         </q-card-section>
         <q-card-section class="pay-card__footer">
-          <div v-if="!enoughActiveBalance" class="pay-card__low q-mb-sm">
-            Not enough sats in this wallet for that.
-          </div>
+          <!-- the price couldn't be worked out -->
+          <template v-if="payInvoiceData.meltQuote.error != ''">
+            <q-btn
+              unelevated
+              rounded
+              no-caps
+              color="primary"
+              class="full-width pay-card__go"
+              label="Try again"
+              :loading="working"
+              @click="retryQuote"
+            />
+          </template>
+          <!-- too expensive with the fees -->
+          <template v-else-if="quoteReady && !cost.enough">
+            <div class="pay-card__low q-mb-sm" data-test="pay-too-low">
+              Not enough for this payment with the fees: you have
+              {{ formatCurrency(cost.balance, activeUnit, true) }}.
+              <span v-if="lnurlpay && smallerAmount">
+                You can send up to
+                {{ formatCurrency(smallerAmount, activeUnit, true) }}.
+              </span>
+              <span v-else-if="lnurlpay">
+                That's too little to send anything to this address.
+              </span>
+            </div>
+            <q-btn
+              v-if="lnurlpay && smallerAmount"
+              unelevated
+              rounded
+              no-caps
+              color="primary"
+              class="full-width pay-card__go"
+              :label="`Send ${formatCurrency(
+                smallerAmount,
+                activeUnit,
+                true
+              )} instead`"
+              :loading="working"
+              data-test="pay-smaller"
+              @click="sendSmaller"
+            />
+          </template>
           <q-btn
-            v-if="enoughActiveBalance"
+            v-else
             unelevated
             rounded
             no-caps
             color="primary"
             class="full-width pay-card__go"
-            :disabled="
-              payInvoiceData.blocking || payInvoiceData.meltQuote.error != ''
-            "
-            @click="melt"
-            :label="
-              payInvoiceData.meltQuote.error != ''
-                ? 'Error'
-                : !payInvoiceData.blocking
-                ? payLabel
-                : 'Paying…'
-            "
-            :loading="globalMutexLock && !payInvoiceData.blocking"
+            :disabled="!quoteReady || working"
+            @click="pay"
+            :label="payLabel"
+            :loading="working || (globalMutexLock && !payInvoiceData.blocking)"
             data-test="pay-btn"
           >
             <template v-slot:loading>
               <q-spinner-hourglass />
             </template>
           </q-btn>
+          <q-btn
+            v-if="lnurlpay"
+            outline
+            rounded
+            no-caps
+            color="primary"
+            class="full-width q-mt-sm"
+            label="Change amount"
+            :disable="working"
+            data-test="pay-change-amount"
+            @click="changeLnurlAmount"
+          />
+          <q-btn
+            v-else
+            outline
+            rounded
+            no-caps
+            color="primary"
+            class="full-width q-mt-sm"
+            icon="qr_code_scanner"
+            label="Pay something else"
+            :disable="working"
+            data-test="pay-start-over"
+            @click="restartPayment(false)"
+          />
           <q-btn
             v-close-popup
             flat
@@ -95,97 +168,96 @@
             color="grey"
             class="full-width q-mt-xs"
             label="Cancel"
+            :disable="working"
           />
         </q-card-section>
       </template>
 
       <!-- ////////////////// LNURL / LIGHTNING ADDRESS ////////////////// -->
-      <q-card-section v-else-if="payInvoiceData.lnurlpay" class="col">
-        <q-form @submit="lnurlPaySecond" class="q-gutter-md">
-          <p
-            v-if="
-              payInvoiceData.lnurlpay.maxSendable ==
-              payInvoiceData.lnurlpay.minSendable
-            "
-            class="q-my-none text-h6 text-center"
-          >
-            <b>{{ payInvoiceData.lnurlpay.domain }}</b> is requesting
-            {{ payInvoiceData.lnurlpay.maxSendable / 1000 }}
-            {{ tickerShort }}
-          </p>
-          <p v-else class="q-my-none text-h6 text-center">
-            <b>{{
-              payInvoiceData.lnurlpay.targetUser ||
-              payInvoiceData.lnurlpay.domain
-            }}</b>
-            is requesting <br />
-            between
-            <b>{{ payInvoiceData.lnurlpay.minSendable / 1000 }}</b>
-            and
-            <b>{{ payInvoiceData.lnurlpay.maxSendable / 1000 }}</b>
-            {{ tickerShort }}
-          </p>
-          <q-separator class="q-my-sm"></q-separator>
-          <div class="row" v-if="payInvoiceData.lnurlpay.description">
-            <p class="col text-justify text-italic">
-              {{ payInvoiceData.lnurlpay.description }}
-            </p>
-            <p class="col-4 q-pl-md" v-if="payInvoiceData.lnurlpay.image">
-              <q-img :src="payInvoiceData.lnurlpay.image" />
-            </p>
-          </div>
-          <div class="row">
-            <div class="col-12">
-              <q-input
-                outlined
-                autofocus
-                v-model.number="payInvoiceData.input.amount"
-                type="number"
-                inputmode="numeric"
-                :label="'Amount (' + tickerShort + ') *'"
-                :min="payInvoiceData.lnurlpay.minSendable / 1000"
-                :max="payInvoiceData.lnurlpay.maxSendable / 1000"
-                :readonly="
-                  payInvoiceData.lnurlpay.maxSendable ==
-                  payInvoiceData.lnurlpay.minSendable
-                "
-              ></q-input>
+      <template v-else-if="lnurlpay">
+        <q-card-section class="col pay-card__body">
+          <q-form id="lnurl-amount-form" novalidate @submit="submitAmount">
+            <div class="text-subtitle1 text-grey-5">Send to</div>
+            <div class="pay-card__recipient" data-test="pay-recipient">
+              {{ lnurlpay.address || lnurlpay.domain }}
             </div>
             <div
-              class="col-12 q-pt-sm"
-              v-if="payInvoiceData.lnurlpay.commentAllowed > 0"
+              class="row items-center q-mt-sm"
+              v-if="lnurlText || lnurlImage"
             >
-              <q-input
-                outlined
-                v-model="payInvoiceData.input.comment"
-                _type="payInvoiceData.lnurlpay.commentAllowed > 64 ? 'textarea' : 'text'"
-                label="Comment (optional)"
-                :maxlength="payInvoiceData.lnurlpay.commentAllowed"
-              ></q-input>
+              <p
+                v-if="lnurlText"
+                class="col text-italic q-mb-none pay-card__memo"
+              >
+                {{ lnurlText }}
+              </p>
+              <div class="col-3 q-pl-md" v-if="lnurlImage">
+                <q-img :src="lnurlImage" />
+              </div>
             </div>
-          </div>
-          <div class="row no-wrap items-center q-mt-lg">
-            <q-btn
-              unelevated
-              rounded
-              no-caps
-              color="primary"
-              type="submit"
-              class="pay-card__go col"
-              >Next</q-btn
-            >
-            <q-btn
-              v-close-popup
-              flat
-              rounded
-              no-caps
-              color="grey"
-              class="q-ml-sm"
-              >Cancel</q-btn
-            >
-          </div>
-        </q-form>
-      </q-card-section>
+            <q-input
+              outlined
+              class="q-mt-lg"
+              :autofocus="!$q.screen.lt.sm"
+              v-model.number="payInvoiceData.input.amount"
+              type="number"
+              inputmode="numeric"
+              :label="'Amount (' + tickerShort + ')'"
+              :min="lnurlMin"
+              :max="lnurlMax"
+              :readonly="lnurlMin == lnurlMax"
+              :hint="amountHint"
+              :error="!!amountError"
+              :error-message="amountError"
+              data-test="pay-lnurl-amount"
+            />
+            <q-input
+              v-if="lnurlpay.commentAllowed > 0"
+              outlined
+              class="q-mt-md"
+              v-model="payInvoiceData.input.comment"
+              label="Message (optional)"
+              :maxlength="lnurlpay.commentAllowed"
+            />
+          </q-form>
+        </q-card-section>
+        <q-card-section class="pay-card__footer">
+          <q-btn
+            unelevated
+            rounded
+            no-caps
+            color="primary"
+            type="submit"
+            form="lnurl-amount-form"
+            class="full-width pay-card__go"
+            label="Next"
+            :loading="working"
+            :disable="!(payInvoiceData.input.amount > 0) || !!amountError"
+            data-test="pay-lnurl-next"
+          />
+          <q-btn
+            outline
+            rounded
+            no-caps
+            color="primary"
+            class="full-width q-mt-sm"
+            label="Back"
+            :disable="working"
+            data-test="pay-back"
+            @click="restartPayment(true)"
+          />
+          <q-btn
+            v-close-popup
+            flat
+            rounded
+            no-caps
+            color="grey"
+            class="full-width q-mt-xs"
+            label="Cancel"
+            :disable="working"
+          />
+        </q-card-section>
+      </template>
 
       <!-- ////////////////// SCAN OR PASTE ////////////////// -->
       <template v-else>
@@ -231,8 +303,14 @@
               type="textarea"
               rows="3"
               label="Lightning invoice or address"
+              autocapitalize="off"
+              autocomplete="off"
+              autocorrect="off"
+              spellcheck="false"
               :autofocus="!$q.screen.lt.sm"
-              @keyup.enter="decodeAndQuote(payInvoiceData.input.request)"
+              @keydown.enter.prevent="
+                decodeAndQuote(payInvoiceData.input.request)
+              "
             >
               <template v-if="payInvoiceData.input.request" v-slot:append>
                 <q-icon
@@ -265,6 +343,7 @@
               class="full-width pay-card__go q-mt-md"
               type="submit"
               label="Next"
+              :loading="working"
               data-test="pay-next"
             />
           </q-form>
@@ -295,18 +374,17 @@ export default defineComponent({
   },
   props: {},
   data: function () {
-    return {};
+    return {
+      // looking up an address, getting an invoice or paying
+      working: false,
+    };
   },
   watch: {
-    activeMintUrl: async function () {
-      if (this.payInvoiceData.show) {
-        await this.meltQuote();
-      }
+    activeMintUrl: function () {
+      this.requote();
     },
-    activeUnit: async function () {
-      if (this.payInvoiceData.show) {
-        await this.meltQuote();
-      }
+    activeUnit: function () {
+      this.requote();
     },
   },
   computed: {
@@ -330,11 +408,64 @@ export default defineComponent({
         navigator.clipboard.readText
       );
     },
-    enoughActiveBalance: function () {
-      return (
-        this.activeMintBalanceSafe >=
-        this.payInvoiceData.meltQuote.response.amount
+    lnurlpay: function () {
+      return this.payInvoiceData.lnurlpay;
+    },
+    // LUD-06 metadata: [["text/plain", "Pay alice"], ["image/png;base64", …]]
+    lnurlMetadata: function () {
+      try {
+        const metadata = JSON.parse(this.lnurlpay.metadata);
+        return Array.isArray(metadata) ? metadata : [];
+      } catch (e) {
+        return [];
+      }
+    },
+    lnurlText: function () {
+      const entry = this.lnurlMetadata.find((m) => m[0] === "text/plain");
+      return entry ? String(entry[1]) : "";
+    },
+    lnurlImage: function () {
+      const entry = this.lnurlMetadata.find((m) =>
+        /^image\/(png|jpeg);base64$/.test(m[0])
       );
+      return entry ? `data:${entry[0]},${entry[1]}` : "";
+    },
+    lnurlMin: function () {
+      return this.lnurlpay ? Math.ceil(this.lnurlpay.minSendable / 1000) : 0;
+    },
+    lnurlMax: function () {
+      return this.lnurlpay ? Math.floor(this.lnurlpay.maxSendable / 1000) : 0;
+    },
+    amountHint: function () {
+      const parts = [
+        "You have " +
+          this.formatCurrency(
+            this.activeMintBalanceSafe,
+            this.activeUnit,
+            true
+          ),
+      ];
+      if (this.lnurlpay && this.activeUnit === "sat") {
+        parts.push(this.lnurlRange + " allowed");
+      }
+      return parts.join(" · ");
+    },
+    lnurlRange: function () {
+      return this.lnurlMin == this.lnurlMax
+        ? `exactly ${this.formatNumber(this.lnurlMin)} sat`
+        : `${this.formatNumber(this.lnurlMin)} to ${this.formatNumber(
+            this.lnurlMax
+          )} sat`;
+    },
+    amountError: function () {
+      const amount = Number(this.payInvoiceData.input.amount);
+      if (!this.lnurlpay || !amount || this.activeUnit !== "sat") {
+        return "";
+      }
+      if (amount < this.lnurlMin || amount > this.lnurlMax) {
+        return `This address takes ${this.lnurlRange}`;
+      }
+      return "";
     },
     activeMintBalanceSafe: function () {
       try {
@@ -342,6 +473,44 @@ export default defineComponent({
       } catch (e) {
         return 0;
       }
+    },
+    quoteReady: function () {
+      const response = this.payInvoiceData.meltQuote.response;
+      return (
+        !!response &&
+        !!response.quote &&
+        response.amount > 0 &&
+        this.payInvoiceData.meltQuote.error == "" &&
+        !this.payInvoiceData.blocking
+      );
+    },
+    cost: function () {
+      return this.meltCost();
+    },
+    smallerAmount: function () {
+      // the address may not take that little
+      const smaller = this.cost.smallerAmount;
+      return smaller && smaller >= this.lnurlMin ? smaller : null;
+    },
+    quoteErrorText: function () {
+      const error = this.payInvoiceData.meltQuote.error;
+      const message = String((error && error.message) || error).replace(
+        /^Error:\s*/,
+        ""
+      );
+      if (this.payInvoiceData.invoice && !this.payInvoiceData.invoice.sat) {
+        return "This invoice has no amount in it. Ask for one with an amount, or pay to a Lightning address.";
+      }
+      if (/no active mint/i.test(message)) {
+        return "This wallet has no sats yet. Add some first with Receive → Lightning.";
+      }
+      if (/expired/i.test(message)) {
+        return "This invoice has expired. Ask for a new one.";
+      }
+      if (/already (been )?paid|already spent|state.*paid/i.test(message)) {
+        return "This invoice was already paid.";
+      }
+      return "Couldn't get a price for this payment: " + message;
     },
     activeUnits: function () {
       try {
@@ -351,9 +520,8 @@ export default defineComponent({
       }
     },
     payLabel: function () {
-      const amount = this.payInvoiceData.meltQuote.response.amount;
-      return amount > 0
-        ? "Pay " + this.formatCurrency(amount, this.activeUnit, true)
+      return this.quoteReady
+        ? "Pay " + this.formatCurrency(this.cost.amount, this.activeUnit, true)
         : "Pay";
     },
   },
@@ -361,21 +529,57 @@ export default defineComponent({
     ...mapActions(useWalletStore, [
       "melt",
       "meltQuote",
+      "meltCost",
       "decodeRequest",
       "lnurlPaySecond",
+      "changeLnurlAmount",
+      "restartPayment",
     ]),
     ...mapActions(useCameraStore, ["closeCamera", "showCamera"]),
-    canPay: function () {
-      if (!this.payInvoiceData.invoice) return false;
-      return payInvoiceData.meltQuote.response.amount <= this.activeBalance;
-    },
     closeParseDialog: function () {
       setTimeout(() => {
         clearInterval(this.payInvoiceData.paymentChecker);
       }, 10000);
     },
-    decodeAndQuote: async function (request) {
-      await this.decodeRequest(request);
+    formatNumber: function (n) {
+      return new Intl.NumberFormat().format(n);
+    },
+    // one thing at a time; the store already tells people what went wrong
+    run: async function (job) {
+      if (this.working) {
+        return;
+      }
+      this.working = true;
+      try {
+        return await job();
+      } catch (error) {
+        console.error(error);
+      } finally {
+        this.working = false;
+      }
+    },
+    decodeAndQuote: function (request) {
+      if (request) {
+        return this.run(() => this.decodeRequest(request));
+      }
+    },
+    submitAmount: function () {
+      return this.run(() => this.lnurlPaySecond());
+    },
+    sendSmaller: function () {
+      this.payInvoiceData.input.amount = this.smallerAmount;
+      return this.run(() => this.lnurlPaySecond());
+    },
+    retryQuote: function () {
+      return this.run(() => this.meltQuote());
+    },
+    requote: function () {
+      if (this.payInvoiceData.show && this.payInvoiceData.invoice) {
+        this.run(() => this.meltQuote());
+      }
+    },
+    pay: function () {
+      return this.run(() => this.melt());
     },
     pasteToParseDialog: function () {
       console.log("pasteToParseDialog");
@@ -417,6 +621,33 @@ export default defineComponent({
 .pay-card__memo {
   font-style: italic;
   opacity: 0.85;
+}
+
+.pay-card__to {
+  margin-top: 2px;
+  font-size: 1rem;
+  word-break: break-all;
+}
+
+.pay-card__recipient {
+  margin-top: 2px;
+  font-size: 1.5rem;
+  font-weight: bold;
+  line-height: 1.2;
+  word-break: break-all;
+}
+
+.pay-card__costs {
+  margin-top: 20px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.06);
+  font-size: 0.95rem;
+  line-height: 1.7;
+}
+
+.pay-card__total {
+  font-weight: bold;
 }
 
 .pay-card__low {
