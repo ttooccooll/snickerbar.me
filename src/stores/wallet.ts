@@ -18,8 +18,9 @@ import { bech32 } from "bech32";
 import axios from "axios";
 import { date } from "quasar";
 import { splitAmount } from "@cashu/cashu-ts/dist/lib/es5/utils";
-import { isHexKeysetId } from "src/js/treats";
-import { inputFeeForProofs } from "src/js/fees";
+import { isHexKeysetId, noteCount } from "src/js/treats";
+import { affordableAmount, amountPlusInputFee, feeForCount, inputFeeForProofs } from "src/js/fees";
+import { parseLightningRequest } from "src/js/lightning";
 
 // HACK: this is a workaround so that the catch block in the melt function does not throw an error when the user exits the app
 // before the payment is completed. This is necessary because the catch block in the melt function would otherwise remove all
@@ -42,6 +43,24 @@ type InvoiceHistory = Invoice & {
   mint: string;
   unit?: string;
   token?: string;
+};
+
+// a LUD-06 payRequest, plus what the person typed or scanned to get it
+type LnurlPayRequest = {
+  domain: string;
+  callback: string;
+  minSendable: number;
+  maxSendable: number;
+  metadata: any;
+  successAction: any;
+  routes: any[];
+  tag: string;
+  commentAllowed?: number;
+  // the Lightning address, "" for an LNURL
+  address?: string;
+  // the address or LNURL itself
+  source?: string;
+  [key: string]: any;
 };
 
 // cashu-ts 1.x does not type the NUT-02 input fee yet
@@ -71,10 +90,14 @@ export const useWalletStore = defineStore("wallet", {
       keysetCounters: useLocalStorage("cashu.keysetCounters", [] as KeysetCounter[]),
       oldMnemonicCounters: useLocalStorage("cashu.oldMnemonicCounters", [] as { mnemonic: string, keysetCounters: KeysetCounter[] }[]),
       invoiceData: {} as InvoiceHistory,
+      // where "Move to my wallet" sent the sats last time
+      moveAddress: useLocalStorage("snickerbar.moveAddress", ""),
       payInvoiceData: {
         blocking: false,
         bolt11: "",
         show: false,
+        // moving everything to the person's own wallet, not paying someone
+        sweep: false,
         meltQuote: {
           payload: {
             unit: "",
@@ -101,7 +124,7 @@ export const useWalletStore = defineStore("wallet", {
           successAction: {},
           routes: [],
           tag: "",
-        },
+        } as LnurlPayRequest | null,
         lnurlauth: {},
         input: {
           request: "",
@@ -174,11 +197,7 @@ export const useWalletStore = defineStore("wallet", {
       // - order by id (whether it is hex or base64)
       // - order by input_fee_ppk (ascending)
       // - select the first one
-      const activeKeysets = unitKeysets.filter(k => k.active)
-      const byFee = (a: FeeKeyset, b: FeeKeyset) => (a.input_fee_ppk ?? 0) - (b.input_fee_ppk ?? 0)
-      const hexKeysets = activeKeysets.filter(k => isHexKeysetId(k.id)).sort(byFee)
-      const base64Keysets = activeKeysets.filter(k => !isHexKeysetId(k.id)).sort(byFee)
-      const sortedKeysets = hexKeysets.concat(base64Keysets)
+      const sortedKeysets = this.keysetsByPreference(unitKeysets)
       if (sortedKeysets.length == 0) {
         console.error("no active keysets found for unit", mintStore.activeUnit);
         throw new Error("no active keysets found for unit");
@@ -189,6 +208,30 @@ export const useWalletStore = defineStore("wallet", {
         this.wallet.keys = keys;
       }
       return keyset_id;
+    },
+    /**
+     * Active keysets in the order we make new notes in: hex ids first, then
+     * the cheapest first.
+     */
+    keysetsByPreference: function (keysets: FeeKeyset[]): FeeKeyset[] {
+      const activeKeysets = keysets.filter(k => k.active)
+      const byFee = (a: FeeKeyset, b: FeeKeyset) => (a.input_fee_ppk ?? 0) - (b.input_fee_ppk ?? 0)
+      const hexKeysets = activeKeysets.filter(k => isHexKeysetId(k.id)).sort(byFee)
+      const base64Keysets = activeKeysets.filter(k => !isHexKeysetId(k.id)).sort(byFee)
+      return hexKeysets.concat(base64Keysets)
+    },
+    /**
+     * The input fee (NUT-02) of the keyset new notes are made in, 0 on
+     * fee-free mints.
+     */
+    newNoteFeePpk: function (): number {
+      try {
+        const mintStore = useMintsStore();
+        const keysets = mintStore.activeMint().unitKeysets(mintStore.activeUnit) as FeeKeyset[];
+        return this.keysetsByPreference(keysets)[0]?.input_fee_ppk ?? 0;
+      } catch (e) {
+        return 0;
+      }
     },
     /**
      * Sets an invoice status to paid
@@ -392,6 +435,25 @@ export const useWalletStore = defineStore("wallet", {
         sendProofs: newProofs.slice(keepAmounts.length),
       };
     },
+    /**
+     * Picks notes worth `amount` plus the input fee the mint charges for
+     * spending them. Notes that add up to exactly `amount` need no swap, so
+     * no fee either.
+     */
+    selectProofsWithFee: function (spendableProofs: WalletProof[], amount: number) {
+      const sum = (ps: WalletProof[]) => ps.reduce((s, t) => (s += t.amount), 0);
+      let proofs = this.coinSelect(spendableProofs, amount);
+      let total = sum(proofs);
+      // splitting costs a fee on some mints: pick enough for the amount plus
+      // the fee (which grows with every extra note we pick)
+      let fee = total != amount ? this.inputFee(proofs) : 0;
+      for (let i = 0; fee > 0 && total < amount + fee && i < 5; i++) {
+        proofs = this.coinSelect(spendableProofs, amount + fee);
+        total = sum(proofs);
+        fee = this.inputFee(proofs);
+      }
+      return { proofs, total, fee, ok: proofs.length > 0 && total >= amount + fee };
+    },
     splitToSend: async function (proofs: WalletProof[], amount: number, invalidate: boolean = false): Promise<{ keepProofs: Proof[], sendProofs: Proof[] }> {
       /*
       splits proofs so the user can keep firstProofs, send scndProofs.
@@ -407,17 +469,11 @@ export const useWalletStore = defineStore("wallet", {
       await uIStore.lockMutex();
       try {
         const spendableProofs = this.spendableProofs(proofs, amount);
-        proofsToSplit = this.coinSelect(spendableProofs, amount);
-        let totalAmount = proofsToSplit.reduce((s, t) => (s += t.amount), 0);
-        // splitting costs a fee on some mints: pick enough for the amount plus
-        // the fee (which grows with every extra note we pick)
-        let fee = totalAmount != amount ? this.inputFee(proofsToSplit) : 0;
-        for (let i = 0; fee > 0 && totalAmount < amount + fee && i < 5; i++) {
-          proofsToSplit = this.coinSelect(spendableProofs, amount + fee);
-          totalAmount = proofsToSplit.reduce((s, t) => (s += t.amount), 0);
-          fee = this.inputFee(proofsToSplit);
-        }
-        if (fee > 0 && totalAmount < amount + fee) {
+        const selection = this.selectProofsWithFee(spendableProofs, amount);
+        proofsToSplit = selection.proofs;
+        const totalAmount = selection.total;
+        const fee = selection.fee;
+        if (!selection.ok) {
           proofsToSplit = [];
           notifyWarning("Balance is too low", "There isn't enough left to also pay the mint's fee.");
           throw new Error("Balance too low to cover the mint's fee.");
@@ -522,6 +578,9 @@ export const useWalletStore = defineStore("wallet", {
         } catch (error: any) {
           console.error(error);
           this.handleOutputsHaveAlreadyBeenSignedError(keysetId, error);
+          if (/already spent|11001/i.test(String(error?.message || error))) {
+            throw new Error("Already claimed: this ecash was spent before.");
+          }
           throw new Error("Error receiving tokens: " + error);
         }
         // const proofs: Proof[] = tokenCts.token.map(t => t.proofs).flat();
@@ -698,6 +757,68 @@ export const useWalletStore = defineStore("wallet", {
         uIStore.unlockMutex();
       }
     },
+    /**
+     * What paying the current melt quote takes out of the wallet, worked out
+     * the way melt() picks its notes: the amount, the Lightning fee reserve
+     * (the unused part comes back) and, on mints with fees, the input fees
+     * for splitting off the notes and spending them. `smallerAmount` is an
+     * amount that would fit, for invoices whose amount we can change.
+     */
+    meltCost: function () {
+      const mintStore = useMintsStore();
+      const proofsStore = useProofsStore();
+      const quote = this.payInvoiceData.meltQuote.response;
+      const amount = quote?.amount || 0;
+      const feeReserve = quote?.fee_reserve || 0;
+      let proofs: WalletProof[] = [];
+      try {
+        proofs = proofsStore.getUnreservedProofs(mintStore.activeMint().unitProofs(mintStore.activeUnit));
+      } catch (e) {
+        // no mint yet
+      }
+      const balance = proofsStore.sumProofs(proofs);
+      const ppk = this.newNoteFeePpk();
+      // the same steps as melt(): split off amount + reserve + the input fee
+      // of the notes we hand over. Notes that happen to add up exactly are
+      // handed over as they are, and if their own fee is higher melt() picks
+      // again for that.
+      let target = amountPlusInputFee(amount + feeReserve, ppk);
+      let swapFee = 0;
+      let enough = false;
+      for (let i = 0; amount > 0 && i < 4; i++) {
+        const selection = this.selectProofsWithFee(proofs, target);
+        if (!selection.ok) {
+          break;
+        }
+        const swapped = selection.total != target;
+        const noteFee = swapped
+          ? feeForCount(noteCount(target), ppk)
+          : this.inputFee(selection.proofs);
+        const needed = amount + feeReserve + noteFee;
+        if (target >= needed) {
+          swapFee = selection.fee;
+          enough = true;
+          break;
+        }
+        target = needed;
+      }
+      if (!enough) {
+        // can't pay: swapping everything we have is the most it could cost
+        target = amountPlusInputFee(amount + feeReserve, ppk);
+        swapFee = this.inputFee(proofs);
+      }
+      const total = target + swapFee;
+      const mintFee = total - amount - feeReserve;
+      return {
+        amount,
+        feeReserve,
+        mintFee,
+        total,
+        balance,
+        enough,
+        smallerAmount: enough ? amount : affordableAmount(amount, total, balance),
+      };
+    },
     melt: async function () {
       const uIStore = useUiStore();
       const proofsStore = useProofsStore();
@@ -721,7 +842,7 @@ export const useWalletStore = defineStore("wallet", {
 
       const amount_invoice = this.payInvoiceData.invoice.sat;
       const quote = this.payInvoiceData.meltQuote.response;
-      if (quote == null) {
+      if (quote == null || !quote.quote) {
         throw new Error("no quote found.");
       }
       const amount = quote.amount + quote.fee_reserve;
@@ -736,10 +857,12 @@ export const useWalletStore = defineStore("wallet", {
       const keysetId = this.getKeyset();
       let keysetCounterIncrease = 0;
 
-      // get right amount of proofs to send
+      // get right amount of proofs to send. On mints with fees the notes we
+      // hand over cost an input fee too: split that off right away instead
+      // of swapping a second time
       let { keepProofs, sendProofs } = await this.splitToSend(
         mintStore.activeMint().unitProofs(mintStore.activeUnit),
-        amount
+        amountPlusInputFee(amount, this.newNoteFeePpk())
       );
       // mints with fees also take an input fee on top of amount + fee_reserve
       for (let i = 0; i < 3; i++) {
@@ -792,7 +915,11 @@ export const useWalletStore = defineStore("wallet", {
         let amount_paid = proofsStore.sumProofs(sendProofs) - proofsStore.sumProofs(data.change)
         if (!!window.navigator.vibrate) navigator.vibrate(200);
 
-        notifySuccess("Paid " + uIStore.formatCurrency(amount_paid, mintStore.activeUnit) + " via Lightning");
+        notifySuccess(
+          this.payInvoiceData.sweep
+            ? "Moved " + uIStore.formatCurrency(quote.amount, mintStore.activeUnit) + " to your wallet"
+            : "Paid " + uIStore.formatCurrency(amount_paid, mintStore.activeUnit) + " via Lightning"
+        );
         console.log("#### pay lightning: token paid");
         // delete spent tokens from db
         mintStore.removeProofs(sendProofs);
@@ -828,6 +955,12 @@ export const useWalletStore = defineStore("wallet", {
         const mintQuote = await mintStore.activeMint().api.checkMeltQuote(quote.quote);
         if (mintQuote.state == MeltQuoteState.PAID || mintQuote.state == MeltQuoteState.PENDING) {
           console.log("### melt: error, but quote is paid or pending. not rolling back.");
+          // don't leave a Pay button up for a payment that's on its way
+          notifyWarning(
+            mintQuote.state == MeltQuoteState.PAID ? "The payment went through" : "The payment is still on its way",
+            "The connection dropped before it finished. Check your history in a minute."
+          );
+          this.payInvoiceData.show = false;
           throw error;
         }
         // roll back proof management and keyset counter
@@ -1163,12 +1296,16 @@ export const useWalletStore = defineStore("wallet", {
     },
     handleBolt11Invoice: async function () {
       this.payInvoiceData.show = true;
+      // never show (or pay) the quote of the previous invoice
+      this.payInvoiceData.meltQuote.error = "";
+      this.payInvoiceData.meltQuote.response = { quote: "", amount: 0, fee_reserve: 0 } as MeltQuoteResponse;
       let invoice;
       try {
         invoice = bolt11Decoder.decode(this.payInvoiceData.input.request);
       } catch (error) {
-        notifyWarning("Failed to decode invoice", undefined, 3000);
-        this.payInvoiceData.show = false;
+        // stay on the pay screen with the text, so it can be fixed
+        notifyWarning("That invoice can't be read", "Check that all of it was copied, or scan it again.");
+        this.payInvoiceData.invoice = null;
         throw error;
       }
       let cleanInvoice = {
@@ -1212,43 +1349,41 @@ export const useWalletStore = defineStore("wallet", {
       // get quote for this request
       await this.meltQuote()
     },
-    handleCashuToken: function () {
+    handleCashuToken: function (fromClaimLink = false) {
       this.payInvoiceData.show = false;
-      receiveStore.showReceiveTokens = true;
+      if (fromClaimLink) {
+        // a printed treat card, scanned from inside the wallet
+        receiveStore.fromClaimLink = true;
+        receiveStore.showClaimTreat = true;
+      } else {
+        receiveStore.showReceiveTokens = true;
+      }
     },
     handleP2PK: function (req: string) {
       notifyWarning("Locking ecash to a public key isn't supported in this wallet.");
     },
     decodeRequest: async function (req: string) {
       const p2pkStore = useP2PKStore()
+      req = (req || "").trim()
+      // a new payment: forget the Lightning address of the last one
+      this.payInvoiceData.lnurlpay = null
       this.payInvoiceData.input.request = req
-      if (req.toLowerCase().startsWith("lnbc")) {
-        this.payInvoiceData.input.request = req;
+      // invoices, LNURLs and Lightning addresses, in whatever form a store's
+      // QR code puts them (upper case, lightning: links, bitcoin: QR codes)
+      const ln = parseLightningRequest(req);
+      if (ln?.type === "bolt11") {
+        this.payInvoiceData.input.request = ln.value;
         await this.handleBolt11Invoice()
-      } else if (req.toLowerCase().startsWith("lightning:")) {
-        this.payInvoiceData.input.request = req.slice(10);
-        await this.handleBolt11Invoice()
-      } else if (req.toLowerCase().startsWith("lnurl:")) {
-        this.payInvoiceData.input.request = req.slice(6);
-        await this.lnurlPayFirst(this.payInvoiceData.input.request);
-      } else if (req.indexOf("lightning=lnurl1") !== -1) {
-        this.payInvoiceData.input.request = req
-          .split("lightning=")[1]
-          .split("&")[0];
-        await this.lnurlPayFirst(this.payInvoiceData.input.request);
-      } else if (
-        req.toLowerCase().startsWith("lnurl1") ||
-        req.match(/[\w.+-~_]+@[\w.+-~_]/)
-      ) {
-        this.payInvoiceData.input.request = req
-        await this.lnurlPayFirst(this.payInvoiceData.input.request);
+      } else if (ln) {
+        this.payInvoiceData.input.request = ln.value;
+        await this.lnurlPayFirst(ln.value);
       } else if (req.indexOf("cashuA") !== -1) {
         // very dirty way of parsing cashu tokens from either a pasted token or a URL like https://host.com?token=eyJwcm
         receiveStore.receiveData.tokensBase64 = extractToken(req, "cashuA");
-        this.handleCashuToken()
+        this.handleCashuToken(/[?&]token=cashu/.test(req))
       } else if (req.indexOf("cashuB") !== -1) {
         receiveStore.receiveData.tokensBase64 = extractToken(req, "cashuB");
-        this.handleCashuToken()
+        this.handleCashuToken(/[?&]token=cashu/.test(req))
       } else if (p2pkStore.isValidPubkey(req)) {
         this.handleP2PK(req)
       } else if (
@@ -1256,7 +1391,27 @@ export const useWalletStore = defineStore("wallet", {
       ) {
         const mintStore = useMintsStore();
         mintStore.addMintData = { url: req, nickname: "" }
+      } else if (/^bitcoin:|^(bc1|[13])[a-z0-9]{25,}$/i.test(req)) {
+        notifyWarning("That's an on-chain bitcoin address", "This wallet pays over Lightning. Ask for a Lightning QR code.");
+      } else if (req) {
+        notifyWarning("Couldn't read that code", "Scan or paste a Lightning invoice or address.");
       }
+    },
+    /**
+     * True when some of a token's ecash is spent already, i.e. somebody
+     * claimed the treat before us. Only asks the mint, history stays as is.
+     */
+    isTokenSpent: async function (tokenStr: string): Promise<boolean> {
+      const tokenJson = token.decode(tokenStr);
+      if (!tokenJson) {
+        throw new Error("no token");
+      }
+      const enc = new TextEncoder();
+      const Ys = token
+        .getProofs(tokenJson)
+        .map((p) => hashToCurve(enc.encode(p.secret)).toHex(true));
+      const { states } = await new CashuMint(token.getMint(tokenJson)).check({ Ys });
+      return states.some((s) => s.state === CheckStateEnum.SPENT);
     },
     fetchBitcoinPriceUSD: async function () {
       var { data } = await axios.get(
@@ -1267,34 +1422,36 @@ export const useWalletStore = defineStore("wallet", {
     lnurlPayFirst: async function (address: string) {
       var host;
       var data
-      if (address.split("@").length == 2) {
-        let [user, lnaddresshost] = address.split("@");
-        host = `https://${lnaddresshost}/.well-known/lnurlp/${user}`;
-        const resp = await axios.get(host); // Moved it here: we don't want 2 potential calls
-        data = resp.data;
-      } else if (address.toLowerCase().slice(0, 6) === "lnurl1") {
-        let decoded = bech32.decode(address, 20000);
-        const words = bech32.fromWords(decoded.words);
-        const uint8Array = new Uint8Array(words);
-        host = new TextDecoder().decode(uint8Array);
+      try {
+        if (address.split("@").length == 2) {
+          let [user, lnaddresshost] = address.split("@");
+          host = `https://${lnaddresshost}/.well-known/lnurlp/${user}`;
+          const resp = await axios.get(host); // Moved it here: we don't want 2 potential calls
+          data = resp.data;
+        } else if (address.toLowerCase().slice(0, 6) === "lnurl1") {
+          let decoded = bech32.decode(address, 20000);
+          const words = bech32.fromWords(decoded.words);
+          const uint8Array = new Uint8Array(words);
+          host = new TextDecoder().decode(uint8Array);
 
-        const resp = await axios.get(host);
-        data = resp.data;
+          const resp = await axios.get(host);
+          data = resp.data;
+        }
+      } catch (error) {
+        console.error(error);
+        // a typo, or the service is down: say so instead of doing nothing
+        notifyWarning(
+          address.includes("@") ? `Couldn't find ${address}` : "Couldn't open that LNURL",
+          "Check the spelling and your internet connection, then try again."
+        );
+        return;
       }
       if (host == undefined) {
         notifyError("Invalid LNURL", "LNURL Error");
         return;
       }
-      if (data.tag == "payRequest") {
-        this.payInvoiceData.lnurlpay = data;
-        this.payInvoiceData.lnurlpay.domain = host.split("https://")[1].split("/")[0];
-        if (
-          this.payInvoiceData.lnurlpay.maxSendable ==
-          this.payInvoiceData.lnurlpay.minSendable
-        ) {
-          this.payInvoiceData.input.amount =
-            this.payInvoiceData.lnurlpay.maxSendable / 1000;
-        }
+      if (data?.tag == "payRequest") {
+        // start from a clean slate, then fill in what the service tells us
         this.payInvoiceData.invoice = null;
         this.payInvoiceData.input = {
           request: "",
@@ -1302,53 +1459,158 @@ export const useWalletStore = defineStore("wallet", {
           comment: "",
           quote: "",
         };
+        let domain = String(host);
+        try {
+          domain = new URL(host).host;
+        } catch (e) {
+          // keep the raw address
+        }
+        const lnurlpay: LnurlPayRequest = {
+          ...data,
+          domain,
+          // what the person typed or scanned, to show it and to go back to it
+          address: address.includes("@") ? address : "",
+          source: address,
+        };
+        this.payInvoiceData.lnurlpay = lnurlpay;
+        if (lnurlpay.maxSendable == lnurlpay.minSendable) {
+          this.payInvoiceData.input.amount = lnurlpay.maxSendable / 1000;
+        }
         this.payInvoiceData.show = true;
+      } else {
+        notifyWarning("That isn't a Lightning payment request", data?.reason || "");
       }
     },
-    lnurlPaySecond: async function () {
+    /**
+     * Gets an invoice for the entered amount from the Lightning address and
+     * quotes it. The Lightning address stays, so the amount can be changed
+     * and tried again. Returns true when there's an invoice to confirm.
+     */
+    lnurlPaySecond: async function (): Promise<boolean> {
       const mintStore = useMintsStore();
+      const lnurlpay = this.payInvoiceData.lnurlpay;
       let amount = this.payInvoiceData.input.amount;
-      if (amount == null) {
-        notifyError("No amount", "LNURL Error");
-        return;
-      }
-      if (this.payInvoiceData.lnurlpay == null) {
+      if (lnurlpay == null || lnurlpay.tag != "payRequest") {
         notifyError("No LNURL data", "LNURL Error");
-        return;
+        return false;
       }
-      if (
-        this.payInvoiceData.lnurlpay.tag == "payRequest" &&
-        this.payInvoiceData.lnurlpay.minSendable <= amount * 1000 &&
-        this.payInvoiceData.lnurlpay.maxSendable >= amount * 1000
-      ) {
-        if (mintStore.activeUnit == "usd") {
-          try {
-            var priceUsd = await this.fetchBitcoinPriceUSD();
-          } catch (e) {
-            notifyError(
-              "Couldn't get Bitcoin price",
-              "fetchBitcoinPriceUSD Error"
-            );
-            return;
-          }
+      if (amount == null || !(amount > 0)) {
+        notifyWarning("Enter an amount");
+        return false;
+      }
+      if (mintStore.activeUnit == "usd") {
+        try {
+          var priceUsd = await this.fetchBitcoinPriceUSD();
+        } catch (e) {
+          notifyError(
+            "Couldn't get Bitcoin price",
+            "fetchBitcoinPriceUSD Error"
+          );
+          return false;
+        }
 
-          const satPrice = 1 / (priceUsd / 1e8);
-          const usdAmount = amount;
-          amount = Math.floor(usdAmount * satPrice);
-          console.log(`converted amount: ${amount}`);
-        }
-        var { data } = await axios.get(
-          `${this.payInvoiceData.lnurlpay.callback}?amount=${amount * 1000}`
-        );
-        // check http error
-        if (data.status == "ERROR") {
-          notifyError(data.reason, "LNURL Error");
-          return;
-        }
-        console.log(data.pr);
-        console.log(`callback: ${this.payInvoiceData.lnurlpay.callback}`);
-        await this.decodeRequest(data.pr);
+        const satPrice = 1 / (priceUsd / 1e8);
+        const usdAmount = amount;
+        amount = Math.floor(usdAmount * satPrice);
+        console.log(`converted amount: ${amount}`);
       }
+      const minSat = Math.ceil(lnurlpay.minSendable / 1000);
+      const maxSat = Math.floor(lnurlpay.maxSendable / 1000);
+      if (amount < minSat || amount > maxSat) {
+        notifyWarning(
+          minSat == maxSat
+            ? `${lnurlpay.domain} only takes exactly ${minSat} sat`
+            : `${lnurlpay.domain} takes ${minSat} to ${maxSat} sat`,
+          "Change the amount and try again."
+        );
+        return false;
+      }
+      const params = new URLSearchParams({ amount: String(amount * 1000) });
+      const comment = (this.payInvoiceData.input.comment || "").trim();
+      const commentAllowed = lnurlpay.commentAllowed ?? 0;
+      if (comment && commentAllowed > 0) {
+        params.set("comment", comment.slice(0, commentAllowed));
+      }
+      // some services put their own query in the callback already
+      const sep = lnurlpay.callback.includes("?") ? "&" : "?";
+      let data;
+      try {
+        ({ data } = await axios.get(`${lnurlpay.callback}${sep}${params}`));
+      } catch (error) {
+        console.error(error);
+        notifyWarning(
+          `Couldn't get an invoice from ${lnurlpay.domain}`,
+          "Check your internet connection and try again."
+        );
+        return false;
+      }
+      // check http error
+      if (data.status == "ERROR") {
+        notifyError(data.reason, "LNURL Error");
+        return false;
+      }
+      console.log(`callback: ${lnurlpay.callback}`);
+      const ln = parseLightningRequest(data.pr || "");
+      if (ln?.type !== "bolt11") {
+        notifyError(`${lnurlpay.domain} sent back something that isn't an invoice`);
+        return false;
+      }
+      // the invoice has to be for the amount we asked for (LUD-06)
+      try {
+        const invoiceMsat = bolt11Decoder
+          .decode(ln.value)
+          .sections.find((sec: any) => sec.name === "amount")?.value;
+        if (Number(invoiceMsat) !== amount * 1000) {
+          notifyError(`${lnurlpay.domain} sent an invoice for a different amount`, "Not paying it, to be safe.");
+          return false;
+        }
+      } catch (e) {
+        notifyError(`${lnurlpay.domain} sent an invoice that can't be read`);
+        return false;
+      }
+      // not through decodeRequest: that would forget the Lightning address
+      this.payInvoiceData.input.request = ln.value;
+      await this.handleBolt11Invoice();
+      return true;
+    },
+    /**
+     * Opens the pay screen to move all sats to the person's own wallet,
+     * starting from the address they used last time.
+     */
+    openMoveSats: function () {
+      this.payInvoiceData.invoice = null;
+      this.payInvoiceData.lnurlpay = null;
+      this.payInvoiceData.meltQuote.error = "";
+      this.payInvoiceData.input = {
+        request: this.moveAddress || "",
+        amount: null,
+        comment: "",
+        quote: "",
+      };
+      this.payInvoiceData.sweep = true;
+      this.payInvoiceData.show = true;
+    },
+    /**
+     * Back from confirming a Lightning address payment to its amount, with
+     * the address kept.
+     */
+    changeLnurlAmount: function () {
+      this.payInvoiceData.invoice = null;
+      this.payInvoiceData.input.request = "";
+      this.payInvoiceData.meltQuote.error = "";
+      this.payInvoiceData.meltQuote.response = { quote: "", amount: 0, fee_reserve: 0 } as MeltQuoteResponse;
+    },
+    /**
+     * Back to the start of the pay screen, keeping what was typed so a typo
+     * can be fixed.
+     */
+    restartPayment: function (keepText = true) {
+      const source = this.payInvoiceData.lnurlpay?.source || "";
+      this.changeLnurlAmount();
+      this.payInvoiceData.lnurlpay = null;
+      this.payInvoiceData.input.amount = null;
+      this.payInvoiceData.input.comment = "";
+      this.payInvoiceData.input.request = keepText ? source : "";
     },
     generateNewMnemonic: function () {
       if (this.mnemonic == "") {

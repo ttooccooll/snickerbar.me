@@ -87,6 +87,7 @@ export default defineComponent({
       this.payInvoiceData.show = true;
       this.payInvoiceData.invoice = null;
       this.payInvoiceData.lnurlpay = null;
+      this.payInvoiceData.sweep = false;
       this.payInvoiceData.domain = "";
       this.payInvoiceData.lnurlauth = null;
       this.payInvoiceData.input.request = "";

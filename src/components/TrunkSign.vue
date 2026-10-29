@@ -21,12 +21,13 @@
       </li>
       <li>
         <span class="trunk-sign__step-icon" aria-hidden="true">👆</span>
-        Tap <b>Receive</b>. A free wallet opens in your browser.
+        Tap <b>Receive my treat</b>. It opens in your browser.
         <span class="trunk-sign__small">No app, no sign-up.</span>
       </li>
       <li>
-        <span class="trunk-sign__step-icon" aria-hidden="true">⚡</span>
-        Spend it anywhere that takes bitcoin over Lightning.
+        <span class="trunk-sign__step-icon" aria-hidden="true">🔒</span>
+        Tap <b>Move them to my wallet</b> to keep them in a wallet you own, like
+        Coinos.
       </li>
     </ol>
     <div class="trunk-sign__footer">

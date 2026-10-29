@@ -106,6 +106,10 @@
             @keydown.enter.prevent="sanitizeMintUrlAndShowAddDialog"
             v-model="addMintData.url"
             placeholder="https://"
+            type="url"
+            autocapitalize="off"
+            autocorrect="off"
+            spellcheck="false"
             ref="mintInput"
             class="q-pb-none q-mb-sm q-px-md"
           >
@@ -169,178 +173,191 @@
       </q-list>
     </div>
 
-    <!-- nostr -->
-    <div class="q-py-sm q-px-xs text-left" on-left>
-      <q-list padding>
-        <q-item>
-          <q-item-section>
-            <q-item-label overline>Discover</q-item-label>
-            <q-item-label caption
-              >Discover mints other users have recommended on
-              nostr.</q-item-label
-            >
-          </q-item-section>
-        </q-item>
-        <q-item v-if="false">
-          <q-btn
-            class="q-ml-sm q-px-md"
-            color="primary"
-            rounded
-            outline
-            @click="initNdk"
-            >Link to extension</q-btn
-          >
-        </q-item>
-        <q-item>
-          <q-btn
-            class="q-ml-sm q-px-md"
-            color="primary"
-            rounded
-            outline
-            :loading="discoveringMints"
-            @click="fetchMintsFromNdk"
-            >Discover mints
-            <template v-slot:loading>
-              <q-spinner-hourglass class="on-left" />
-              Loading...
-            </template>
-          </q-btn>
-        </q-item>
-        <div v-if="mintRecommendations.length > 0">
-          <!-- for each entry in mintRecommendations, display the url and the count how often it was recommended -->
+    <!-- discovering mints and swapping between them: tucked away so the
+    tab stays simple on a phone -->
+    <q-expansion-item
+      v-model="showMoreMintTools"
+      dense-toggle
+      class="q-mx-xs q-mt-sm text-left"
+      header-class="text-secondary"
+      icon="tune"
+      label="More mint tools"
+      caption="Discover mints, swap between mints"
+      data-test="more-mint-tools"
+    >
+      <!-- nostr -->
+      <div class="q-py-sm q-px-xs text-left" on-left>
+        <q-list padding>
           <q-item>
             <q-item-section>
-              <q-item-label overline
-                >Found {{ mintRecommendations.length }} mints</q-item-label
-              >
+              <q-item-label overline>Discover</q-item-label>
               <q-item-label caption
-                >These mints were recommended by other Nostr users. Read reviews
-                at
-                <a
-                  href="https://bitcoinmints.com"
-                  target="_blank"
-                  class="text-primary"
-                  >bitcoinmints.com</a
-                >. Be careful and do your own research before using a mint.
+                >Discover mints other users have recommended on
+                nostr.</q-item-label
+              >
+            </q-item-section>
+          </q-item>
+          <q-item v-if="false">
+            <q-btn
+              class="q-ml-sm q-px-md"
+              color="primary"
+              rounded
+              outline
+              @click="initNdk"
+              >Link to extension</q-btn
+            >
+          </q-item>
+          <q-item>
+            <q-btn
+              class="q-ml-sm q-px-md"
+              color="primary"
+              rounded
+              outline
+              :loading="discoveringMints"
+              @click="fetchMintsFromNdk"
+              >Discover mints
+              <template v-slot:loading>
+                <q-spinner-hourglass class="on-left" />
+                Loading...
+              </template>
+            </q-btn>
+          </q-item>
+          <div v-if="mintRecommendations.length > 0">
+            <!-- for each entry in mintRecommendations, display the url and the count how often it was recommended -->
+            <q-item>
+              <q-item-section>
+                <q-item-label overline
+                  >Found {{ mintRecommendations.length }} mints</q-item-label
+                >
+                <q-item-label caption
+                  >These mints were recommended by other Nostr users. Read
+                  reviews at
+                  <a
+                    href="https://bitcoinmints.com"
+                    target="_blank"
+                    class="text-primary"
+                    >bitcoinmints.com</a
+                  >. Be careful and do your own research before using a mint.
+                </q-item-label>
+              </q-item-section>
+            </q-item>
+            <q-expansion-item
+              dense
+              dense-toggle
+              class="text-left"
+              label="Click to browse mints"
+            >
+              <q-item v-for="mint in mintRecommendations" :key="mint.url">
+                <q-item-section
+                  class="q-mx-none q-pl-none"
+                  style="max-width: 1.05em"
+                >
+                  <q-icon
+                    name="content_copy"
+                    @click="copyText(mint.url)"
+                    size="1em"
+                    color="grey"
+                    class="q-mr-xs cursor-pointer"
+                  />
+                </q-item-section>
+                <q-item-section>
+                  <q-item-label caption style="word-break: break-word">{{
+                    mint.url
+                  }}</q-item-label>
+                </q-item-section>
+                <q-item-section side>
+                  <q-badge :label="mint.count" color="primary" />
+                </q-item-section>
+              </q-item>
+            </q-expansion-item>
+          </div>
+        </q-list>
+      </div>
+
+      <div class="q-py-sm q-px-xs text-left" on-left>
+        <q-list padding>
+          <q-item>
+            <q-item-section>
+              <q-item-label overline>Multimint Swaps</q-item-label>
+              <q-item-label caption
+                >Swap funds from one mint to another via Lightning. Note: This
+                is an experimental feature and should be used carefully. Leave
+                room for potential Lightning fees. If the incoming payment does
+                not succeed, check the incoming pending invoice manually by
+                clicking the refresh button.
               </q-item-label>
             </q-item-section>
           </q-item>
-          <q-expansion-item
-            dense
-            dense-toggle
-            class="text-left"
-            label="Click to browse mints"
-          >
-            <q-item v-for="mint in mintRecommendations" :key="mint.url">
-              <q-item-section
-                class="q-mx-none q-pl-none"
-                style="max-width: 1.05em"
-              >
-                <q-icon
-                  name="content_copy"
-                  @click="copyText(mint.url)"
-                  size="1em"
-                  color="grey"
-                  class="q-mr-xs cursor-pointer"
-                />
-              </q-item-section>
-              <q-item-section>
-                <q-item-label caption style="word-break: break-word">{{
-                  mint.url
-                }}</q-item-label>
-              </q-item-section>
-              <q-item-section side>
-                <q-badge :label="mint.count" color="primary" />
-              </q-item-section>
-            </q-item>
-          </q-expansion-item>
-        </div>
-      </q-list>
-    </div>
-
-    <div class="q-py-sm q-px-xs text-left" on-left>
-      <q-list padding>
-        <q-item>
-          <q-item-section>
-            <q-item-label overline>Multimint Swaps</q-item-label>
-            <q-item-label caption
-              >Swap funds from one mint to another via Lightning. Note: This is
-              an experimental feature and should be used carefully. Leave room
-              for potential Lightning fees. If the incoming payment does not
-              succeed, check the incoming pending invoice manually by clicking
-              the refresh button.
-            </q-item-label>
-          </q-item-section>
-        </q-item>
-        <q-item>
-          <q-select
-            clearable
-            rounded
-            outlined
-            dense
-            color="primary"
-            v-model="swapData.from_url"
-            :options="swapDataOptions()"
-            option-value="url"
-            option-label="shorturl"
-            label="From"
-            style="min-width: 200px; width: 100%"
-          />
-        </q-item>
-        <q-item>
-          <q-select
-            clearable
-            rounded
-            outlined
-            dense
-            color="primary"
-            v-model="swapData.to_url"
-            :options="swapDataOptions()"
-            option-value="url"
-            option-label="shorturl"
-            label="To"
-            style="min-width: 200px; width: 100%"
-          />
-        </q-item>
-        <q-item>
-          <q-input
-            rounded
-            outlined
-            dense
-            v-model.number="swapData.amount"
-            type="number"
-            :label="'Amount (' + tickerShort + ')'"
-            style="min-width: 200px"
-          ></q-input>
-          <q-btn
-            class="q-ml-sm q-px-md"
-            color="primary"
-            rounded
-            @click="
-              mintSwap(
-                swapData.from_url.url,
-                swapData.to_url.url,
-                swapData.amount
-              )
-            "
-            :disable="
-              !swapData.from_url ||
-              !swapData.to_url ||
-              !(swapData.amount > 0) ||
-              swapData.from_url == swapData.to_url
-            "
-            :loading="swapBlocking"
-          >
-            <q-icon size="xs" name="swap_horiz" class="q-pr-xs" />
-            Swap
-            <template v-slot:loading>
-              <q-spinner-hourglass size="xs" />
+          <q-item>
+            <q-select
+              clearable
+              rounded
+              outlined
+              dense
+              color="primary"
+              v-model="swapData.from_url"
+              :options="swapDataOptions()"
+              option-value="url"
+              option-label="shorturl"
+              label="From"
+              style="min-width: 200px; width: 100%"
+            />
+          </q-item>
+          <q-item>
+            <q-select
+              clearable
+              rounded
+              outlined
+              dense
+              color="primary"
+              v-model="swapData.to_url"
+              :options="swapDataOptions()"
+              option-value="url"
+              option-label="shorturl"
+              label="To"
+              style="min-width: 200px; width: 100%"
+            />
+          </q-item>
+          <q-item>
+            <q-input
+              rounded
+              outlined
+              dense
+              v-model.number="swapData.amount"
+              type="number"
+              :label="'Amount (' + tickerShort + ')'"
+              style="min-width: 200px"
+            ></q-input>
+            <q-btn
+              class="q-ml-sm q-px-md"
+              color="primary"
+              rounded
+              @click="
+                mintSwap(
+                  swapData.from_url.url,
+                  swapData.to_url.url,
+                  swapData.amount
+                )
+              "
+              :disable="
+                !swapData.from_url ||
+                !swapData.to_url ||
+                !(swapData.amount > 0) ||
+                swapData.from_url == swapData.to_url
+              "
+              :loading="swapBlocking"
+            >
+              <q-icon size="xs" name="swap_horiz" class="q-pr-xs" />
               Swap
-            </template>
-          </q-btn>
-        </q-item>
-      </q-list>
-    </div>
+              <template v-slot:loading>
+                <q-spinner-hourglass size="xs" />
+                Swap
+              </template>
+            </q-btn>
+          </q-item>
+        </q-list>
+      </div>
+    </q-expansion-item>
 
     <q-dialog
       v-model="showEditMintDialog"
@@ -547,6 +564,7 @@ export default defineComponent({
   },
   data: function () {
     return {
+      showMoreMintTools: false,
       discoveringMints: false,
       addingMint: false,
       hideMnemonic: true,

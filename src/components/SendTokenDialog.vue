@@ -1,14 +1,17 @@
 <template>
   <q-dialog
     v-model="showSendTokens"
-    position="top"
+    :position="$q.screen.lt.sm ? 'standard' : 'top'"
     backdrop-filter="blur(2px) brightness(60%)"
     no-backdrop-dismiss
-    :maximized="sendData.tokens.length > 0"
+    :maximized="sendData.tokens.length > 0 || $q.screen.lt.sm"
   >
     <!-- ////////////////// FILL THE TREAT BAG ////////////////// -->
-    <q-card v-if="!sendData.tokens.length" class="q-pa-md qcard">
-      <q-card-section class="q-pa-none">
+    <q-card
+      v-if="!sendData.tokens.length"
+      class="qcard treat-form column no-wrap"
+    >
+      <q-card-section class="col treat-form__body">
         <div class="row items-center no-wrap q-mb-md">
           <div class="col-12">
             <span class="text-h6 spooky-title">Fill your treat bag</span>
@@ -21,6 +24,7 @@
         <q-input
           v-model.number="treatSettings.count"
           type="number"
+          inputmode="numeric"
           label="How many treats?"
           :min="1"
           :max="maxTreats"
@@ -47,6 +51,7 @@
           <q-input
             v-model.number="treatSettings.amount"
             type="number"
+            inputmode="numeric"
             :label="'Amount per treat (' + tickerShort + ')'"
             outlined
             class="q-mb-sm"
@@ -153,7 +158,11 @@
             v-model.trim="treatSettings.claimBaseUrl"
             :placeholder="defaultClaimBaseUrl"
             label="Wallet that opens the link"
-            :hint="`Leave empty to use ${defaultClaimBaseUrl}. Must accept ?token=…`"
+            type="url"
+            autocapitalize="off"
+            autocorrect="off"
+            spellcheck="false"
+            :hint="`Leave empty to use ${defaultClaimBaseUrl}. The ecash is added as ?token=…, or put {token} where it goes.`"
             outlined
             dense
             class="q-mt-sm"
@@ -168,8 +177,18 @@
         </div>
 
         <ChooseMint :ticker-short="tickerShort" />
+        <div
+          v-if="feeNote"
+          class="text-caption text-grey-5 q-mt-sm"
+          data-test="fee-note"
+        >
+          {{ feeNote }}
+        </div>
+      </q-card-section>
 
-        <div class="row items-center q-mb-sm">
+      <!-- always in reach of a thumb, also with the keyboard up -->
+      <q-card-section class="treat-form__footer">
+        <div class="row items-center">
           <div class="col-12 text-body2">
             <span v-if="planError" class="text-warning">{{ planError }}</span>
             <span v-else>
@@ -186,19 +205,23 @@
             </span>
           </div>
           <div
-            v-if="feeNote"
-            class="col-12 text-caption text-grey-5 q-mt-xs"
-            data-test="fee-note"
+            v-if="insufficientBalance"
+            class="col-12 text-body2 text-warning q-mt-xs"
+            data-test="bag-too-big"
           >
-            {{ feeNote }}
+            That's {{ formatCurrency(shortfall, activeUnit, true) }} more than
+            this wallet has<span v-if="makingFeeEstimate">, with the fees</span
+            >.
           </div>
         </div>
 
-        <div class="row q-mt-md">
+        <div class="row no-wrap items-center q-mt-sm">
           <q-btn
             v-if="!insufficientBalance"
             color="primary"
             rounded
+            unelevated
+            class="treat-form__fill"
             :disable="!!planError || !!claimLinkWarning || filling"
             :loading="filling"
             @click="fillBag"
@@ -209,6 +232,21 @@
               Wrapping {{ fillProgress.done + 1 }}/{{ fillProgress.total }}
             </template>
           </q-btn>
+          <!-- one tap to make what the balance pays for -->
+          <q-btn
+            v-else-if="fitCount >= 1"
+            color="primary"
+            rounded
+            unelevated
+            no-caps
+            class="treat-form__fill"
+            data-test="bag-fit"
+            @click="treatSettings.count = fitCount"
+            >Make {{ fitCount }} treat{{
+              fitCount == 1 ? "" : "s"
+            }}
+            instead</q-btn
+          >
           <q-btn
             v-else
             unelevated
@@ -216,9 +254,10 @@
             disabled
             color="yellow"
             text-color="black"
+            class="treat-form__fill"
             >Mint balance too low</q-btn
           >
-          <q-btn v-close-popup rounded flat color="grey" class="q-ml-auto"
+          <q-btn v-close-popup rounded flat color="grey" class="q-ml-sm"
             >Close</q-btn
           >
         </div>
@@ -246,16 +285,23 @@
             >👻 {{ claimedCount }}/{{ sendData.tokens.length }} claimed</q-chip
           >
         </div>
-        <div class="treat-toolbar__actions">
+        <div
+          class="treat-toolbar__actions"
+          :class="{ 'treat-toolbar__actions--compact': compactToolbar }"
+        >
           <q-btn
             v-if="!isSingle"
             unelevated
             dense
-            rounded
-            color="deep-orange"
-            class="q-px-sm q-mr-xs"
+            no-caps
+            :rounded="!compactToolbar"
+            :flat="compactToolbar"
+            :stack="compactToolbar"
+            :color="compactToolbar ? undefined : 'deep-orange'"
+            :text-color="compactToolbar ? 'deep-orange-4' : undefined"
+            :class="compactToolbar ? '' : 'q-px-sm q-mr-xs'"
             icon="door_front"
-            label="Porch mode"
+            :label="compactToolbar ? 'Porch' : 'Porch mode'"
             data-test="porch-btn"
             @click="showPorch = true"
             ><q-tooltip
@@ -263,11 +309,21 @@
               tablet at the door</q-tooltip
             ></q-btn
           >
-          <q-btn flat dense icon="print" @click="printPage" label="Print" />
+          <q-btn
+            flat
+            dense
+            no-caps
+            :stack="compactToolbar"
+            icon="print"
+            @click="printPage"
+            label="Print"
+          />
           <q-btn
             v-if="!isSingle"
             flat
             dense
+            no-caps
+            :stack="compactToolbar"
             icon="campaign"
             label="Sign"
             :class="{ 'treat-toolbar__on': treatSettings.trunkSign }"
@@ -282,9 +338,12 @@
           <q-btn
             flat
             dense
+            no-caps
+            :stack="compactToolbar"
             :icon="
               treatSettings.inkSaver ? 'invert_colors_off' : 'invert_colors'
             "
+            :label="compactToolbar ? 'Ink' : undefined"
             @click="treatSettings.inkSaver = !treatSettings.inkSaver"
             ><q-tooltip>{{
               treatSettings.inkSaver ? "Spooky dark cards" : "Ink saver"
@@ -293,7 +352,10 @@
           <q-btn
             flat
             dense
+            no-caps
+            :stack="compactToolbar"
             icon="refresh"
+            :label="compactToolbar ? 'Check' : undefined"
             :loading="checkingClaims"
             @click="checkClaims(true)"
             ><q-tooltip>Check which treats were claimed</q-tooltip></q-btn
@@ -302,7 +364,10 @@
             v-if="isSingle"
             flat
             dense
+            no-caps
+            :stack="compactToolbar"
             icon="content_copy"
+            :label="compactToolbar ? 'Copy' : undefined"
             @click="copyText(sendData.tokens[0])"
             ><q-tooltip>Copy token</q-tooltip></q-btn
           >
@@ -310,7 +375,10 @@
             v-if="unclaimedPendingTokens.length"
             flat
             dense
+            no-caps
+            :stack="compactToolbar"
             icon="undo"
+            :label="compactToolbar ? 'Take back' : undefined"
             :loading="reclaiming"
             @click="showReclaimDialog = true"
             ><q-tooltip>Take back unclaimed treats</q-tooltip></q-btn
@@ -319,11 +387,22 @@
             v-if="isSingle"
             flat
             dense
+            no-caps
+            :stack="compactToolbar"
             icon="delete"
+            :label="compactToolbar ? 'Delete' : undefined"
             @click="showDeleteDialog = true"
             ><q-tooltip>Delete from history</q-tooltip></q-btn
           >
-          <q-btn flat dense @click="showSendTokens = false" label="Close" />
+          <q-btn
+            flat
+            dense
+            no-caps
+            :stack="compactToolbar"
+            :icon="compactToolbar ? 'close' : undefined"
+            @click="showSendTokens = false"
+            label="Close"
+          />
         </div>
       </div>
       <TrunkSign
@@ -496,6 +575,9 @@ export default defineComponent({
       "activeMint",
     ]),
     ...mapState(useTokensStore, ["historyTokens"]),
+    compactToolbar: function () {
+      return this.$q.screen.lt.sm;
+    },
     isSingle: function () {
       return this.sendData.tokens.length === 1 && !!this.sendData.tokensBase64;
     },
@@ -528,6 +610,25 @@ export default defineComponent({
         !this.planError &&
         this.bagTotal + this.makingFeeEstimate > this.mintBalance
       );
+    },
+    shortfall: function () {
+      return Math.max(
+        0,
+        this.bagTotal + this.makingFeeEstimate - this.mintBalance
+      );
+    },
+    fitCount: function () {
+      // as many treats of this size as the balance pays for, fees included
+      if (this.treatSettings.mode !== "same") {
+        return 0;
+      }
+      const each =
+        this.toBaseUnit(Number(this.treatSettings.amount) || 0) +
+        feeForCount(4, this.mintFeePpk);
+      if (!(each > 0)) {
+        return 0;
+      }
+      return Math.min(MAX_TREATS, Math.floor(this.mintBalance / each));
     },
     mintFeePpk: function () {
       // the NUT-02 fee (parts per thousand sats per note) of this mint's
@@ -864,6 +965,50 @@ body .q-dialog .treat-sheet-card {
   display: flex;
   flex-wrap: wrap;
   margin-left: auto;
+}
+
+// phones: one row of icons with little labels, like a tab bar
+.treat-toolbar__actions--compact {
+  flex-wrap: nowrap;
+  justify-content: space-between;
+  width: 100%;
+  margin-left: 0;
+
+  .q-btn {
+    flex: 1 1 0;
+    min-width: 0;
+    padding: 2px 0;
+    font-size: 0.7rem;
+    line-height: 1.1;
+  }
+}
+
+.treat-form {
+  // the body scrolls, the footer with "Fill the bag" stays put
+  max-height: calc(100vh - 48px);
+}
+
+.q-dialog__inner--maximized > .treat-form {
+  max-height: none;
+}
+
+.treat-form__body {
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.treat-form__footer {
+  padding-top: 10px;
+  padding-bottom: calc(14px + env(safe-area-inset-bottom));
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  background: inherit;
+}
+
+.treat-form__fill {
+  flex: 1 1 auto;
+  min-height: 48px;
+  font-size: 1.05rem;
 }
 
 .treat-sheet {

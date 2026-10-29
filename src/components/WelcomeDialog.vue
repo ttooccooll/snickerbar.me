@@ -8,93 +8,128 @@
     @dragover="allowDrop"
     backdrop-filter="blur(2px) brightness(60%)"
   >
-    <q-card class="q-pa-lg z-top">
-      <q-toolbar>
-        <!-- <q-avatar>
-          <img
-            src="https://raw.githubusercontent.com/cashubtc/cashu-ui/main/ui/icons/circle/128x128.png"
-          />
-        </q-avatar> -->
-        <q-toolbar-title
-          ><span class="text-weight-bold">Snickerbar</span> 🎃 bitcoin ecash
-          wallet</q-toolbar-title
-        >
-      </q-toolbar>
-      <q-card-section>
-        <p>Please take a moment to read the following information.</p>
-        <p>
-          <strong>Install and add to home screen.</strong>
-          For the best experience, use this wallet with your device's native web
-          browser (Safari on iOS, Chrome on Android). In Chrome click the
-          hamburger menu at the upper right. In Safari click the share button
-          and press the Add to Home screen button.
-        </p>
-        <p>
-          <strong>Back up your seed phrase.</strong> This wallet stores ecash
-          tokens in its database. If you delete your browser data without
-          backing up, you will lose your tokens. Make sure to back up your
-          wallet seed phrase in the settings.
-        </p>
-        <p>
-          <strong>This software is in BETA!</strong> We hold no responsibility
-          for people losing access to funds. Use at your own risk! This wallet
-          is not affiliated with any mint. This code is open-source and licensed
-          under the MIT license.
-        </p>
-        <!-- wallet backup restore -->
-        <input
-          type="file"
-          id="fileUpload"
-          ref="fileUpload"
-          v-on:change="onChangeFileUpload()"
-        />
-
-        <div class="row q-mt-lg">
-          <q-btn
-            outline
-            class="q-mx-sm"
-            v-if="
-              getPwaDisplayMode() == 'browser' &&
-              deferredPWAInstallPrompt != null
-            "
-            color="primary"
-            @click="triggerPwaInstall()"
-            >Install Cashu</q-btn
-          >
-          <q-btn
-            flat
-            size="0.6rem"
-            class="q-mx-xs q-px-none"
-            @click="copyText(baseURL)"
-            >Copy URL</q-btn
-          >
-          <q-btn
-            flat
-            size="0.6rem"
-            class="q-mx-xs q-px-none"
-            color="warning"
-            icon="upload_for_offline"
-            @click="browseBackupFile"
-            >Restore<q-tooltip
-              >You can drag &amp; drop the wallet backup here!</q-tooltip
-            ></q-btn
-          >
-          <q-btn
-            v-close-popup
-            outline
-            size="0.8rem"
-            class="q-ml-auto"
-            @click="setWelcomeDialogSeen()"
-            >Continue</q-btn
-          >
+    <q-card class="q-pa-lg z-top qcard welcome-card">
+      <div class="text-center">
+        <div class="welcome-card__emoji" aria-hidden="true">🎃</div>
+        <div class="spooky-title welcome-card__title">Snickerbar</div>
+        <div class="welcome-card__lead">
+          A bitcoin ecash wallet that prints Halloween treats
         </div>
-      </q-card-section>
+      </div>
+      <q-list class="q-mt-md">
+        <q-item class="q-px-none">
+          <q-item-section avatar class="welcome-card__icon">📲</q-item-section>
+          <q-item-section>
+            <q-item-label><b>Add it to your home screen</b></q-item-label>
+            <q-item-label caption class="welcome-card__caption"
+              >Safari: tap Share, then Add to Home Screen. Chrome: tap ⋮, then
+              Install app.</q-item-label
+            >
+          </q-item-section>
+        </q-item>
+        <q-item class="q-px-none">
+          <q-item-section avatar class="welcome-card__icon">🔐</q-item-section>
+          <q-item-section>
+            <q-item-label><b>Back up your seed phrase</b></q-item-label>
+            <q-item-label caption class="welcome-card__caption"
+              >Your ecash lives in this browser. If you clear its data without a
+              backup, the sats are gone. The backup words are in
+              Settings.</q-item-label
+            >
+          </q-item-section>
+        </q-item>
+        <q-item class="q-px-none">
+          <q-item-section avatar class="welcome-card__icon">⚠️</q-item-section>
+          <q-item-section>
+            <q-item-label><b>This is beta software</b></q-item-label>
+            <q-item-label caption class="welcome-card__caption"
+              >Use it at your own risk. It's open source (MIT) and not
+              affiliated with any mint.</q-item-label
+            >
+          </q-item-section>
+        </q-item>
+      </q-list>
+      <!-- wallet backup restore -->
+      <input
+        type="file"
+        id="fileUpload"
+        ref="fileUpload"
+        v-on:change="onChangeFileUpload()"
+      />
+      <q-btn
+        v-close-popup
+        unelevated
+        rounded
+        color="primary"
+        class="full-width q-mt-md welcome-card__go"
+        label="Continue"
+        @click="setWelcomeDialogSeen()"
+      />
+      <div class="row justify-center q-mt-sm">
+        <q-btn
+          flat
+          rounded
+          size="0.7rem"
+          v-if="
+            getPwaDisplayMode() == 'browser' && deferredPWAInstallPrompt != null
+          "
+          color="primary"
+          @click="triggerPwaInstall()"
+          >Install</q-btn
+        >
+        <q-btn flat rounded size="0.7rem" @click="copyText(baseURL)"
+          >Copy URL</q-btn
+        >
+        <q-btn
+          flat
+          rounded
+          size="0.7rem"
+          color="warning"
+          icon="upload_for_offline"
+          @click="browseBackupFile"
+          >Restore<q-tooltip
+            >You can drag &amp; drop the wallet backup here!</q-tooltip
+          ></q-btn
+        >
+      </div>
     </q-card>
   </q-dialog>
 </template>
 <style scoped>
 #fileUpload {
   display: none;
+}
+
+.welcome-card__emoji {
+  font-size: 3.2rem;
+  line-height: 1;
+}
+
+.welcome-card__title {
+  margin-top: 4px;
+  font-size: 2.4rem;
+  line-height: 1.1;
+}
+
+.welcome-card__lead {
+  margin-top: 4px;
+  font-size: 1rem;
+  opacity: 0.85;
+}
+
+.welcome-card__icon {
+  font-size: 1.6rem;
+  min-width: 44px;
+}
+
+.welcome-card__caption {
+  font-size: 0.85rem;
+  line-height: 1.35;
+}
+
+.welcome-card__go {
+  min-height: 48px;
+  font-size: 1.05rem;
 }
 </style>
 <script>
@@ -121,6 +156,8 @@ export default defineComponent({
       showWelcomeDialog:
         localStorage.getItem("cashu.welcomeDialogSeen") != "seen" &&
         !useReceiveTokensStore().fromClaimLink,
+      baseURL: location.origin + location.pathname,
+      deferredPWAInstallPrompt: null,
     };
   },
   watch: {},

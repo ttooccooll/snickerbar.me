@@ -23,6 +23,10 @@
           outlined
           v-model="receiveData.tokensBase64"
           label="Paste Cashu token"
+          autocapitalize="off"
+          autocomplete="off"
+          autocorrect="off"
+          spellcheck="false"
           type="textarea"
           autofocus
           class="q-mb-lg"
@@ -281,14 +285,17 @@ export default defineComponent({
       }
       this.showLastKey();
     },
-    receiveIfDecodes: function () {
+    receiveIfDecodes: async function () {
       try {
         const decodedToken = this.decodeToken(this.receiveData.tokensBase64);
         if (decodedToken) {
-          this.receiveToken(this.receiveData.tokensBase64);
+          await this.receiveToken(this.receiveData.tokensBase64);
         }
       } catch (error) {
         console.error(error);
+        // the wallet already said what went wrong: bring the ecash back on
+        // screen so it doesn't have to be pasted again
+        this.showReceiveTokens = true;
       }
     },
     tokenAlreadyInHistory: function (token) {
