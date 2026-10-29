@@ -90,10 +90,14 @@ export const useWalletStore = defineStore("wallet", {
       keysetCounters: useLocalStorage("cashu.keysetCounters", [] as KeysetCounter[]),
       oldMnemonicCounters: useLocalStorage("cashu.oldMnemonicCounters", [] as { mnemonic: string, keysetCounters: KeysetCounter[] }[]),
       invoiceData: {} as InvoiceHistory,
+      // where "Move to my wallet" sent the sats last time
+      moveAddress: useLocalStorage("snickerbar.moveAddress", ""),
       payInvoiceData: {
         blocking: false,
         bolt11: "",
         show: false,
+        // moving everything to the person's own wallet, not paying someone
+        sweep: false,
         meltQuote: {
           payload: {
             unit: "",
@@ -911,7 +915,11 @@ export const useWalletStore = defineStore("wallet", {
         let amount_paid = proofsStore.sumProofs(sendProofs) - proofsStore.sumProofs(data.change)
         if (!!window.navigator.vibrate) navigator.vibrate(200);
 
-        notifySuccess("Paid " + uIStore.formatCurrency(amount_paid, mintStore.activeUnit) + " via Lightning");
+        notifySuccess(
+          this.payInvoiceData.sweep
+            ? "Moved " + uIStore.formatCurrency(quote.amount, mintStore.activeUnit) + " to your wallet"
+            : "Paid " + uIStore.formatCurrency(amount_paid, mintStore.activeUnit) + " via Lightning"
+        );
         console.log("#### pay lightning: token paid");
         // delete spent tokens from db
         mintStore.removeProofs(sendProofs);
@@ -1564,6 +1572,23 @@ export const useWalletStore = defineStore("wallet", {
       this.payInvoiceData.input.request = ln.value;
       await this.handleBolt11Invoice();
       return true;
+    },
+    /**
+     * Opens the pay screen to move all sats to the person's own wallet,
+     * starting from the address they used last time.
+     */
+    openMoveSats: function () {
+      this.payInvoiceData.invoice = null;
+      this.payInvoiceData.lnurlpay = null;
+      this.payInvoiceData.meltQuote.error = "";
+      this.payInvoiceData.input = {
+        request: this.moveAddress || "",
+        amount: null,
+        comment: "",
+        quote: "",
+      };
+      this.payInvoiceData.sweep = true;
+      this.payInvoiceData.show = true;
     },
     /**
      * Back from confirming a Lightning address payment to its amount, with

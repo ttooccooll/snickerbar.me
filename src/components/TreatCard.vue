@@ -38,8 +38,8 @@
       made just for you. Keep it safe like cash.
       <ol v-if="qrStyle === 'link'" class="treat-card__steps">
         <li>Scan the big code with your phone camera.</li>
-        <li>Tap <b>Receive</b>: a free wallet opens, no app needed.</li>
-        <li>To spend: <b>Send → Lightning</b>, scan any Lightning QR.</li>
+        <li>Tap <b>Receive my treat</b>. No app needed.</li>
+        <li>Tap <b>Move them to my wallet</b> to keep them safe.</li>
       </ol>
       <ol v-else class="treat-card__steps">
         <li>Get a free Cashu wallet ("Free wallet" code).</li>

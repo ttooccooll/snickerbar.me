@@ -14,7 +14,9 @@
         <q-card-section class="col pay-card__body">
           <div class="row items-start no-wrap">
             <div class="col">
-              <div class="text-subtitle1 text-grey-5">Pay with Lightning</div>
+              <div class="text-subtitle1 text-grey-5">
+                {{ sweep ? "Move to your own wallet" : "Pay with Lightning" }}
+              </div>
               <div
                 v-if="quoteReady"
                 class="pay-card__amount"
@@ -177,7 +179,9 @@
       <template v-else-if="lnurlpay">
         <q-card-section class="col pay-card__body">
           <q-form id="lnurl-amount-form" novalidate @submit="submitAmount">
-            <div class="text-subtitle1 text-grey-5">Send to</div>
+            <div class="text-subtitle1 text-grey-5">
+              {{ sweep ? "Move to" : "Send to" }}
+            </div>
             <div class="pay-card__recipient" data-test="pay-recipient">
               {{ lnurlpay.address || lnurlpay.domain }}
             </div>
@@ -263,7 +267,9 @@
       <template v-else>
         <q-card-section class="col pay-card__body">
           <div class="row items-center no-wrap q-mb-md">
-            <div class="col text-h6">Pay with Lightning</div>
+            <div class="col text-h6">
+              {{ sweep ? "Move to your own wallet" : "Pay with Lightning" }}
+            </div>
             <q-btn
               v-close-popup
               flat
@@ -274,8 +280,14 @@
               aria-label="Close"
             />
           </div>
+          <div v-if="sweep" class="pay-card__move-intro" data-test="move-intro">
+            Your
+            {{ formatCurrency(activeMintBalanceSafe, activeUnit, true) }} are in
+            a temporary wallet that lives only in this browser. Send them to a
+            wallet you own, so they stay yours.
+          </div>
           <q-btn
-            v-if="payInvoiceData.input.request == ''"
+            v-if="!sweep && payInvoiceData.input.request == ''"
             unelevated
             no-caps
             stack
@@ -287,7 +299,7 @@
             @click="showCamera"
           />
           <div
-            v-if="payInvoiceData.input.request == ''"
+            v-if="!sweep && payInvoiceData.input.request == ''"
             class="text-caption text-grey-5 text-center q-mt-sm q-mb-lg"
           >
             At a store? Scan their Lightning QR code to pay with your sats.
@@ -300,9 +312,19 @@
               ref="parseDialogInput"
               outlined
               v-model.trim="payInvoiceData.input.request"
-              type="textarea"
-              rows="3"
-              label="Lightning invoice or address"
+              :type="sweep ? 'text' : 'textarea'"
+              :rows="sweep ? undefined : 3"
+              :inputmode="sweep ? 'email' : undefined"
+              :label="
+                sweep
+                  ? 'Your Lightning address'
+                  : 'Lightning invoice or address'
+              "
+              :hint="
+                sweep
+                  ? 'Like name@coinos.io, name@strike.me or $cashtag@cash.app'
+                  : undefined
+              "
               autocapitalize="off"
               autocomplete="off"
               autocorrect="off"
@@ -333,6 +355,16 @@
                 "
                 @click="pasteToParseDialog"
               />
+              <q-btn
+                v-if="sweep"
+                flat
+                rounded
+                no-caps
+                color="primary"
+                icon="qr_code_scanner"
+                label="Scan your wallet's QR code"
+                @click="showCamera"
+              />
             </div>
             <q-btn
               v-if="payInvoiceData.input.request != ''"
@@ -347,6 +379,26 @@
               data-test="pay-next"
             />
           </q-form>
+          <div v-if="sweep" class="pay-card__coinos" data-test="move-coinos">
+            <b>No wallet yet?</b> Coinos is free and works right in your
+            browser. Make an account at coinos.io (just a username and a
+            password), then come back and enter your Coinos address:
+            <i>yourname@coinos.io</i>.
+            <div>
+              <q-btn
+                outline
+                rounded
+                no-caps
+                color="primary"
+                class="q-mt-sm"
+                icon-right="open_in_new"
+                label="Open coinos.io"
+                href="https://coinos.io"
+                target="_blank"
+                rel="noopener"
+              />
+            </div>
+          </div>
         </q-card-section>
       </template>
     </q-card>
@@ -386,11 +438,29 @@ export default defineComponent({
     activeUnit: function () {
       this.requote();
     },
+    "payInvoiceData.lnurlpay": function (lnurlpay, old) {
+      // moving to a Lightning address that was scanned: fill in the amount
+      // too, like when it's typed
+      if (
+        lnurlpay &&
+        lnurlpay !== old &&
+        this.sweep &&
+        !this.working &&
+        !this.payInvoiceData.invoice
+      ) {
+        this.moveAddress = lnurlpay.source || this.moveAddress;
+        this.run(() => this.fitAll());
+      }
+    },
   },
   computed: {
     ...mapState(useUiStore, ["tickerShort", "globalMutexLock"]),
     ...mapWritableState(useCameraStore, ["camera", "hasCamera"]),
     ...mapState(useWalletStore, ["payInvoiceData"]),
+    ...mapWritableState(useWalletStore, ["moveAddress"]),
+    sweep: function () {
+      return this.payInvoiceData.sweep;
+    },
     ...mapState(useMintsStore, [
       "activeMintUrl",
       "activeProofs",
@@ -520,9 +590,12 @@ export default defineComponent({
       }
     },
     payLabel: function () {
+      const verb = this.sweep ? "Move" : "Pay";
       return this.quoteReady
-        ? "Pay " + this.formatCurrency(this.cost.amount, this.activeUnit, true)
-        : "Pay";
+        ? verb +
+            " " +
+            this.formatCurrency(this.cost.amount, this.activeUnit, true)
+        : verb;
     },
   },
   methods: {
@@ -537,6 +610,8 @@ export default defineComponent({
     ]),
     ...mapActions(useCameraStore, ["closeCamera", "showCamera"]),
     closeParseDialog: function () {
+      // the next time it's a normal payment again
+      this.payInvoiceData.sweep = false;
       setTimeout(() => {
         clearInterval(this.payInvoiceData.paymentChecker);
       }, 10000);
@@ -560,7 +635,36 @@ export default defineComponent({
     },
     decodeAndQuote: function (request) {
       if (request) {
-        return this.run(() => this.decodeRequest(request));
+        return this.run(async () => {
+          await this.decodeRequest(request);
+          if (this.sweep && this.payInvoiceData.lnurlpay) {
+            this.moveAddress = this.payInvoiceData.lnurlpay.source || request;
+            await this.fitAll();
+          }
+        });
+      }
+    },
+    // moving: the most this wallet can send after fees, straight to the
+    // confirm step
+    fitAll: async function () {
+      let amount = Math.min(this.activeMintBalanceSafe, this.lnurlMax);
+      if (!(amount > 0) || amount < this.lnurlMin) {
+        return;
+      }
+      for (let i = 0; i < 3; i++) {
+        this.payInvoiceData.input.amount = amount;
+        if (!(await this.lnurlPaySecond())) {
+          return;
+        }
+        const cost = this.meltCost();
+        if (
+          cost.enough ||
+          !cost.smallerAmount ||
+          cost.smallerAmount < this.lnurlMin
+        ) {
+          return;
+        }
+        amount = cost.smallerAmount;
       }
     },
     submitAmount: function () {
@@ -635,6 +739,24 @@ export default defineComponent({
   font-weight: bold;
   line-height: 1.2;
   word-break: break-all;
+}
+
+.pay-card__move-intro {
+  margin-bottom: 16px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: rgba(255, 235, 59, 0.12);
+  color: #fff59d;
+  line-height: 1.4;
+}
+
+.pay-card__coinos {
+  margin-top: 28px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+  font-size: 0.95rem;
+  line-height: 1.45;
+  opacity: 0.9;
 }
 
 .pay-card__costs {

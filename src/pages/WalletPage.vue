@@ -3,6 +3,8 @@
     <div class="col-12 col-sm-11 col-md-8 text-center q-gutter-y-md">
       <NoMintWarnBanner v-if="mints.length == 0" />
       <BalanceView v-else :set-tab="setTab" />
+      <!-- treats live in this browser only: get them into a real wallet -->
+      <MoveSatsBanner />
       <div
         class="row items-center justify-center no-wrap q-mb-none q-mx-none q-px-none q-pt-lg q-pb-md"
       >
@@ -214,6 +216,7 @@ import TreatBagBanner from "components/TreatBagBanner.vue";
 import HalloweenCountdown from "components/HalloweenCountdown.vue";
 import TreatClaimedDialog from "components/TreatClaimedDialog.vue";
 import ClaimTreatDialog from "components/ClaimTreatDialog.vue";
+import MoveSatsBanner from "components/MoveSatsBanner.vue";
 // pinia stores
 import { mapActions, mapState, mapWritableState } from "pinia";
 import { useMintsStore } from "src/stores/mints";
@@ -252,6 +255,7 @@ export default {
     HalloweenCountdown,
     TreatClaimedDialog,
     ClaimTreatDialog,
+    MoveSatsBanner,
   },
   data: function () {
     return {
@@ -427,6 +431,7 @@ export default {
       this.payInvoiceData.show = true;
       this.payInvoiceData.invoice = null;
       this.payInvoiceData.lnurlpay = null;
+      this.payInvoiceData.sweep = false;
       this.payInvoiceData.domain = "";
       this.payInvoiceData.lnurlauth = null;
       this.payInvoiceData.input.request = "";

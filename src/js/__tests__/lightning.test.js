@@ -61,6 +61,12 @@ describe("parseLightningRequest", () => {
     expect(
       parseLightningRequest("lightning:tips@walletofsatoshi.com").value
     ).toEqual("tips@walletofsatoshi.com");
+    // Cash App
+    expect(parseLightningRequest("$Pumpkin@cash.app")).toEqual({
+      type: "address",
+      value: "$pumpkin@cash.app",
+    });
+    expect(parseLightningRequest("pump$kin@cash.app")).toBeNull();
   });
 
   it("returns null for anything that isn't payable over Lightning", () => {

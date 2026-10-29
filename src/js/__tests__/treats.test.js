@@ -96,6 +96,24 @@ describe("buildClaimLink", () => {
   it("falls back to the bare token", () => {
     expect(buildClaimLink("", "cashuBabc")).toEqual("cashuBabc");
   });
+
+  it("puts the token where {token} is, for other wallets' links", () => {
+    expect(
+      buildClaimLink("https://wallet.example/ecash/{token}", "cashuBabc")
+    ).toEqual("https://wallet.example/ecash/cashuBabc");
+    expect(
+      buildClaimLink(" https://w.example/#/receive?t={token} ", "cashuBabc")
+    ).toEqual("https://w.example/#/receive?t=cashuBabc");
+  });
+
+  it("accepts template links as claim wallets", () => {
+    expect(claimLinkProblem("https://wallet.example/ecash/{token}")).toEqual(
+      ""
+    );
+    expect(claimLinkProblem("http://localhost:3000/ecash/{token}")).not.toEqual(
+      ""
+    );
+  });
 });
 
 describe("isHexKeysetId", () => {

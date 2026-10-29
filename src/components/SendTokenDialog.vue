@@ -162,7 +162,7 @@
             autocapitalize="off"
             autocorrect="off"
             spellcheck="false"
-            :hint="`Leave empty to use ${defaultClaimBaseUrl}. Must accept ?token=…`"
+            :hint="`Leave empty to use ${defaultClaimBaseUrl}. The ecash is added as ?token=…, or put {token} where it goes.`"
             outlined
             dense
             class="q-mt-sm"

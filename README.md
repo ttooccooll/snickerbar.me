@@ -31,7 +31,15 @@ Everything happens on paper, so parents only need their phone:
 3. **Fill the bag**, turn on **Sign** in the toolbar, then **Print**. Page 1 is a big "Free Bitcoin Treats" sign for your trunk, then the cards follow, up to four per page. Ink saver prints everything on white.
 4. Test one card the night before: scan it with your phone on cellular data (not Wi-Fi), tap **Receive my treat**, and spend a few sats.
 
-When a parent scans a card, the wallet skips its intro and shows "You got a treat!" full screen. One tap on **Receive my treat**, a shower of candy, and a "You're all set" screen that explains how to keep the wallet (Add to Home Screen) and how to spend (**Send → Lightning**). Spending opens a big **Scan a QR code** button: it reads store QR codes in any form, including `lightning:` links, upper case invoices and `bitcoin:` QR codes that carry a Lightning invoice. Before paying, the wallet shows the fees and the total. If the sats don't cover the fees, one tap sends a little less ("Send 1,013 sat instead"), or **Change amount** goes back to the amount without retyping the Lightning address. After the event, reopen the bag from the 🎃 button on the home screen and **take back** whatever nobody claimed.
+When a parent scans a card, the wallet skips its intro and shows "You got a treat!" full screen. One tap on **Receive my treat** and a shower of candy. Then the wallet tells them plainly that the sats sit in a temporary wallet that lives only in their browser (gone if the browser's data is cleared or snickerbar.me shuts down) and offers **Move them to my wallet**: they enter their own Lightning address (name@coinos.io, name@strike.me, $cashtag@cash.app, …) and the wallet sends everything it can after fees, in one tap. No wallet yet? It points them to coinos.io, which is free and runs in the browser. Until they move their sats, a warning with a **Move to my wallet** button stays on their home screen.
+
+Spending opens a big **Scan a QR code** button: it reads store QR codes in any form, including `lightning:` links, upper case invoices and `bitcoin:` QR codes that carry a Lightning invoice. Before paying, the wallet shows the fees and the total. If the sats don't cover the fees, one tap sends a little less ("Send 1,013 sat instead"), or **Change amount** goes back to the amount without retyping the Lightning address. After the event, reopen the bag from the 🎃 button on the home screen and **take back** whatever nobody claimed.
+
+### Keep snickerbar.me up
+
+Parents' treats live in their browser's storage for snickerbar.me. Keep the site online at least until you take back the unclaimed treats, and longer if you can, so late parents can still move their sats. Anyone who has moved their sats to their own wallet no longer needs it.
+
+To have cards open a different wallet instead, put its link in **Claim link settings** → **Wallet that opens the link**. The ecash is added as `?token=…`, or put `{token}` where the wallet expects it (for example `https://wallet.example/ecash/{token}`). Scan a test card before printing a batch.
 
 # Cashu (cashu)
 

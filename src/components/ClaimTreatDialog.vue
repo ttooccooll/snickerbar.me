@@ -63,7 +63,8 @@
             </template>
           </q-btn>
           <div class="claim-treat__fine">
-            Free, no app and no sign-up. Your wallet lives in this browser.
+            Free, no app and no sign-up. It lands in a temporary wallet in this
+            browser, and the next screen helps you move it to a wallet you own.
             <span class="claim-treat__mint">Ecash from {{ mintHost }}</span>
           </div>
         </template>

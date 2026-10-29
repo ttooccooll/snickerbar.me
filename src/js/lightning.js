@@ -2,7 +2,8 @@
 // parent can pay with their treat. Kept free of Vue/Pinia so it can be unit
 // tested.
 
-const LIGHTNING_ADDRESS = /^[a-z0-9._+~-]+@[a-z0-9-]+(\.[a-z0-9-]+)+$/i;
+// name@domain, and Cash App's $cashtag@cash.app
+const LIGHTNING_ADDRESS = /^\$?[a-z0-9._+~-]+@[a-z0-9-]+(\.[a-z0-9-]+)+$/i;
 // bech32 invoices: lnbc (mainnet), lntb, lntbs, lnbcrt, lnsb
 const BOLT11 = /^ln(bc|tb|sb)[0-9a-z]*1[02-9ac-hj-np-z]+$/;
 

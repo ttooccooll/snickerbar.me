@@ -98,13 +98,21 @@ export function noteCount(amount) {
   return n;
 }
 
+// where the ecash goes in a claim link for wallets that don't use ?token=
+export const TOKEN_PLACEHOLDER = "{token}";
+
 /**
  * Builds a link that opens a wallet and pre-fills the token, so a plain phone
  * camera can claim it. Falls back to the bare token if no base URL is given.
+ * A base URL with {token} in it gets the token right there, for wallets
+ * whose links look like https://wallet.example/ecash/cashuB…
  */
 export function buildClaimLink(baseUrl, token) {
   if (!baseUrl) {
     return token;
+  }
+  if (baseUrl.includes(TOKEN_PLACEHOLDER)) {
+    return baseUrl.trim().replace(TOKEN_PLACEHOLDER, token);
   }
   const url = baseUrl.trim().split("#")[0];
   const sep = url.includes("?") ? "&" : "?";
