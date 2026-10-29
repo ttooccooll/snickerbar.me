@@ -73,7 +73,7 @@
           no-caps
           color="grey-5"
           class="full-width q-mt-xs"
-          :label="state === 'ready' ? 'Not now' : 'Close'"
+          label="Close"
           :disable="claiming"
           data-test="claim-close"
           @click="close"

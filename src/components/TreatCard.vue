@@ -35,7 +35,7 @@
     <div class="treat-card__name">“{{ name }}”</div>
     <div class="treat-card__howto">
       <b>For the grown-ups:</b> this card holds real bitcoin as Cashu ecash,
-      made just for you. Keep it safe like cash, and take your time.
+      made just for you. Keep it safe like cash.
       <ol v-if="qrStyle === 'link'" class="treat-card__steps">
         <li>Scan the big code with your phone camera.</li>
         <li>Tap <b>Receive</b>: a free wallet opens, no app needed.</li>
