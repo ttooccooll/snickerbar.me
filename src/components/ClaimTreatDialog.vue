@@ -25,10 +25,11 @@
           </div>
         </template>
         <template v-else-if="state === 'spent'">
-          <div class="spooky-title claim-treat__title">Already claimed!</div>
+          <div class="spooky-title claim-treat__title">Already claimed</div>
           <div class="claim-treat__text" data-test="claim-spent">
-            Somebody got to this treat first, so the card is empty now. Happy
-            Halloween anyway!
+            The bitcoin on this card was already received. If you claimed it
+            earlier, your sats are in the wallet you used then. If not, ask
+            whoever gave you the card.
           </div>
         </template>
         <template v-else>

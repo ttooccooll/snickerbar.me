@@ -18,7 +18,7 @@ Only load it with small amounts you're happy to give away. This is still a beta 
 5. Each card gets its own monster (🎃 👻 🦇 🕷️ 🧙 💀) and color.
 6. After Halloween (the home screen reminds you in November), use **Take back unclaimed treats** (↶) to move any unclaimed sats back into your wallet. Their printed QR codes stop working.
 
-Parents who open a claim link skip the wallet intro and get a full-screen "You got a treat!" with the amount in big numbers and one big **Receive my treat** button, then a shower of candy. If somebody already claimed that card, the screen says so right away.
+Parents who open a claim link skip the wallet intro and get a full-screen "You got a treat!" with the amount in big numbers and one big **Receive my treat** button, then a shower of candy. If the card was already claimed (say, earlier in another browser), the screen says so right away and where to look for the sats.
 
 Mints that charge a small fee per transaction (like mint.coinos.io) work too. The treat bag tells you about the fee, and parents get a sat or so less than the card says when they claim it.
 
